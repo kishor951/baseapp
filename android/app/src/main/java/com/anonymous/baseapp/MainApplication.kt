@@ -1,4 +1,4 @@
-package com.baseapp
+package com.anonymous.baseapp
 
 import android.app.Application
 import android.content.res.Configuration

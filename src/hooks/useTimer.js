@@ -5,6 +5,13 @@ export default function useTimer(initialSeconds = 3600) {
   const [timeLeft, setTimeLeft] = useState(initialSeconds);
   const [isRunning, setIsRunning] = useState(false);
   const [initialTime, setInitialTime] = useState(initialSeconds);
+
+  // Update timer if initialSeconds changes (e.g., dropdown selection)
+  useEffect(() => {
+    setTimeLeft(initialSeconds);
+    setInitialTime(initialSeconds);
+    setIsRunning(false);
+  }, [initialSeconds]);
   const intervalRef = useRef(null);
 
   useEffect(() => {
@@ -46,14 +53,18 @@ export default function useTimer(initialSeconds = 3600) {
       return !running;
     });
   };
-  const restartTimer = () => {
+  const restartTimer = (customTime) => {
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
     setIsRunning(false);
-    setTimeLeft(initialSeconds);
-    setInitialTime(initialSeconds);
+    if (typeof customTime === 'number') {
+      setTimeLeft(customTime);
+      setInitialTime(customTime);
+    } else {
+      setTimeLeft(initialTime);
+    }
   };
   const addTime = (minutes) => {
     const additionalTime = minutes * 60;

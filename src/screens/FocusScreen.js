@@ -30,6 +30,14 @@ export default function FocusScreen({
   const [showTimerDropdown, setShowTimerDropdown] = useState(false);
   const [selectedTimer, setSelectedTimer] = useState(TIMER_OPTIONS[0].value); // Default 15 mins
 
+  // Ensure selectedTimer persists after restart
+  const handleRestart = () => {
+    setTimeLeft(selectedTimer);
+    setInitialTime(selectedTimer);
+    setShowTimerDropdown(false);
+    if (typeof restartTimer === 'function') restartTimer(selectedTimer);
+  };
+
   // Ref for dropdown button position
   const dropdownButtonRef = React.useRef();
 
@@ -64,7 +72,7 @@ export default function FocusScreen({
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
             <TouchableOpacity
               ref={dropdownButtonRef}
-              style={{ backgroundColor: '#e0e0e0', borderRadius: 20, paddingHorizontal: 20, paddingVertical: 10, zIndex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}
+              style={{ backgroundColor: '#bdbdbd', borderRadius: 20, paddingHorizontal: 20, paddingVertical: 10, zIndex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}
               onPress={() => setShowTimerDropdown(!showTimerDropdown)}
             >
               <Text style={{ fontSize: 16, color: '#333', fontFamily: 'SpaceGrotesk-Medium', marginRight: 6 }}>{`${selectedTimer / 60} mins`}</Text>
@@ -104,7 +112,7 @@ export default function FocusScreen({
                   pointerEvents="box-none"
                 >
                   {TIMER_OPTIONS.map(opt => (
-                    <TouchableOpacity key={opt.value} style={{ padding: 15, borderBottomWidth: 1, borderBottomColor: '#f0f0f0', width: '100%' }} onPress={() => handleSelectTimer(opt.value)}>
+                    <TouchableOpacity key={opt.value} style={{ padding: 15, borderBottomWidth: 1, borderBottomColor: '#f0f0f0', width: '100%', backgroundColor: opt.value === TIMER_OPTIONS[0].value ? '#f5f5f5' : '#fff' }} onPress={() => handleSelectTimer(opt.value)}>
                       <Text style={{ fontSize: 16, color: '#333', fontFamily: 'SpaceGrotesk-Regular', textAlign: 'center' }}>{opt.label}</Text>
                     </TouchableOpacity>
                   ))}
@@ -113,7 +121,7 @@ export default function FocusScreen({
             )}
           </View>
         ) : (
-          <TouchableOpacity style={{ backgroundColor: '#e0e0e0', borderRadius: 20, paddingHorizontal: 20, paddingVertical: 10, zIndex: 1 }} onPress={restartTimer}>
+          <TouchableOpacity style={{ backgroundColor: '#bdbdbd', borderRadius: 20, paddingHorizontal: 20, paddingVertical: 10, zIndex: 1 }} onPress={handleRestart}>
             <Text style={{ fontSize: 16, color: '#333', fontFamily: 'SpaceGrotesk-Medium' }}>Restart</Text>
           </TouchableOpacity>
         )}

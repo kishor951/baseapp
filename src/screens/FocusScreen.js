@@ -28,10 +28,13 @@ export default function FocusScreen({
   setInitialTime
 }) {
   const [showTimerDropdown, setShowTimerDropdown] = useState(false);
-  const [selectedTimer, setSelectedTimer] = useState(TIMER_OPTIONS[4].value); // Default 60 mins
+  const [selectedTimer, setSelectedTimer] = useState(TIMER_OPTIONS[0].value); // Default 15 mins
 
-  // Show dropdown only if timer is not running and at initial value
-  const isFresh = !isRunning && progress === 0;
+  // Ref for dropdown button position
+  const dropdownButtonRef = React.useRef();
+
+  // Show dropdown if timer is not running or timer is completed
+  const showTimerDropdownInsteadOfRestart = !isRunning || timeLeft === 0;
 
   const handleSelectTimer = (value) => {
     setSelectedTimer(value);
@@ -53,35 +56,72 @@ export default function FocusScreen({
           <TaskDropdown tasks={tasks} selectTask={selectTask} />
         )}
       </View>
-      {/* Timer Type Dropdown */}
-      {isFresh && (
-        <View style={{ alignItems: 'center', marginTop: 20 }}>
-          <TouchableOpacity style={{ backgroundColor: '#e0e0e0', borderRadius: 20, paddingHorizontal: 20, paddingVertical: 10 }} onPress={() => setShowTimerDropdown(!showTimerDropdown)}>
-            <Text style={{ fontSize: 16, color: '#333', fontFamily: 'SpaceGrotesk-Medium' }}>Select Timer Type ▼</Text>
-          </TouchableOpacity>
-          {showTimerDropdown && (
-            <View style={{ backgroundColor: '#fff', borderRadius: 10, marginTop: 10, borderWidth: 1, borderColor: '#e0e0e0', maxWidth: 200 }}>
-              {TIMER_OPTIONS.map(opt => (
-                <TouchableOpacity key={opt.value} style={{ padding: 15, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' }} onPress={() => handleSelectTimer(opt.value)}>
-                  <Text style={{ fontSize: 16, color: '#333', fontFamily: 'SpaceGrotesk-Regular' }}>{opt.label}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
-        </View>
-      )}
       {/* Timer Circle */}
       <Timer timeLeft={timeLeft} isRunning={isRunning} toggleTimer={toggleTimer} progress={progress} />
       {/* Control Buttons */}
-      <View style={{ flexDirection: 'row', justifyContent: 'space-around', paddingHorizontal: 40, marginTop: 40 }}>
-        <TouchableOpacity style={{ backgroundColor: '#e0e0e0', borderRadius: 20, paddingHorizontal: 20, paddingVertical: 10 }} onPress={restartTimer}>
-          <Text style={{ fontSize: 14, color: '#666', fontWeight: '500', fontFamily: 'DM Sans' }}>Restart</Text>
+      <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 40, marginTop: 40, position: 'relative', gap: 4 }}>
+        {showTimerDropdownInsteadOfRestart ? (
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+            <TouchableOpacity
+              ref={dropdownButtonRef}
+              style={{ backgroundColor: '#e0e0e0', borderRadius: 20, paddingHorizontal: 20, paddingVertical: 10, zIndex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}
+              onPress={() => setShowTimerDropdown(!showTimerDropdown)}
+            >
+              <Text style={{ fontSize: 16, color: '#333', fontFamily: 'SpaceGrotesk-Medium', marginRight: 6 }}>{`${selectedTimer / 60} mins`}</Text>
+              <Text style={{ fontSize: 16, color: '#333', fontFamily: 'SpaceGrotesk-Medium' }}>▼</Text>
+            </TouchableOpacity>
+            {showTimerDropdown && (
+              <TouchableOpacity
+                style={{
+                  position: 'absolute',
+                  top: 50,
+                  left: '50%',
+                  transform: [{ translateX: -100 }],
+                  backgroundColor: 'rgba(0,0,0,0.1)',
+                  width: 200,
+                  height: 180,
+                  zIndex: 10,
+                  justifyContent: 'flex-start',
+                  alignItems: 'center',
+                }}
+                activeOpacity={1}
+                onPress={() => setShowTimerDropdown(false)}
+              >
+                <View style={{
+                  backgroundColor: '#fff',
+                  borderRadius: 10,
+                  borderWidth: 1,
+                  borderColor: '#e0e0e0',
+                  width: 200,
+                  marginTop: 0,
+                  zIndex: 11,
+                  elevation: 5,
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.2,
+                  shadowRadius: 8,
+                }}
+                  pointerEvents="box-none"
+                >
+                  {TIMER_OPTIONS.map(opt => (
+                    <TouchableOpacity key={opt.value} style={{ padding: 15, borderBottomWidth: 1, borderBottomColor: '#f0f0f0', width: '100%' }} onPress={() => handleSelectTimer(opt.value)}>
+                      <Text style={{ fontSize: 16, color: '#333', fontFamily: 'SpaceGrotesk-Regular', textAlign: 'center' }}>{opt.label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </TouchableOpacity>
+            )}
+          </View>
+        ) : (
+          <TouchableOpacity style={{ backgroundColor: '#e0e0e0', borderRadius: 20, paddingHorizontal: 20, paddingVertical: 10, zIndex: 1 }} onPress={restartTimer}>
+            <Text style={{ fontSize: 16, color: '#333', fontFamily: 'SpaceGrotesk-Medium' }}>Restart</Text>
+          </TouchableOpacity>
+        )}
+        <TouchableOpacity style={{ backgroundColor: '#e0e0e0', borderRadius: 20, paddingHorizontal: 20, paddingVertical: 10, zIndex: 1 }} onPress={() => addTime(5)}>
+          <Text style={{ fontSize: 16, color: '#333', fontFamily: 'SpaceGrotesk-Medium' }}>+5 Mins</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={{ backgroundColor: '#e0e0e0', borderRadius: 20, paddingHorizontal: 20, paddingVertical: 10 }} onPress={() => addTime(5)}>
-          <Text style={{ fontSize: 14, color: '#666', fontWeight: '500', fontFamily: 'DM Sans' }}>+5 Mins</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={{ backgroundColor: '#e0e0e0', borderRadius: 20, paddingHorizontal: 20, paddingVertical: 10 }} onPress={() => addTime(10)}>
-          <Text style={{ fontSize: 14, color: '#666', fontWeight: '500', fontFamily: 'DM Sans' }}>+10 Mins</Text>
+        <TouchableOpacity style={{ backgroundColor: '#e0e0e0', borderRadius: 20, paddingHorizontal: 20, paddingVertical: 10, zIndex: 1 }} onPress={() => addTime(10)}>
+          <Text style={{ fontSize: 16, color: '#333', fontFamily: 'SpaceGrotesk-Medium' }}>+10 Mins</Text>
         </TouchableOpacity>
       </View>
       {/* AI Assistant */}

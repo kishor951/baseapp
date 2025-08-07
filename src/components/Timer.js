@@ -1,33 +1,57 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import Svg, { Circle } from 'react-native-svg';
 import formatTime from '../utils/formatTime';
 
 export default function Timer({ timeLeft, isRunning, toggleTimer, progress }) {
-  // Border thickness: starts at 16, reduces to 4 as progress goes to 1
-  const borderWidth = 16 - 12 * progress;
+  // Timer circle dimensions
+  const size = 250;
+  const strokeWidth = 12;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  // Reverse: start full, reduce as time passes
+  const progressOffset = circumference * progress;
+
   return (
-    <View style={{ alignItems: 'center', justifyContent: 'center', marginTop: 40, position: 'relative' }}>
-      {/* Progress ring first, so timer circle and play button are on top */}
-      <View style={{ position: 'absolute', width: 250, height: 250, borderRadius: 125, borderWidth, borderColor: 'transparent', borderTopColor: progress > 0 ? '#000' : '#e0e0e0', transform: [{ rotate: `${progress * 360}deg` }] }} />
-      <View style={{
-        width: 250,
-        height: 250,
-        borderRadius: 125,
-        borderWidth,
-        borderColor: '#000',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: isRunning ? '#e3f2fd' : '#fff',
-      }}>
-        <Text style={{ fontSize: 48, fontWeight: 'bold', color: '#000', marginBottom: 10, fontFamily: 'SpaceGrotesk-Bold' }}>{formatTime(timeLeft)}</Text>
-        <TouchableOpacity style={{ marginTop: 10 }} onPress={() => {
-          console.log('Play/Pause button pressed. isRunning:', isRunning);
-          toggleTimer();
-        }}>
-          <Ionicons name={isRunning ? 'pause' : 'play'} size={64} color="#000" />
-        </TouchableOpacity>
+    <View style={{ alignItems: 'center', justifyContent: 'center', marginTop: 40 }}>
+      <View style={{ position: 'absolute', zIndex: 1 }}>
+        <Svg width={size} height={size}>
+          {/* Background circle */}
+          <Circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            stroke="#e0e0e0"
+            strokeWidth={strokeWidth}
+            fill="none"
+          />
+          {/* Progress arc */}
+          <Circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            stroke="#000"
+            strokeWidth={strokeWidth}
+            fill="none"
+            strokeDasharray={`${circumference},${circumference}`}
+            strokeDashoffset={progressOffset}
+            strokeLinecap="round"
+            rotation="-90"
+            origin={`${size / 2}, ${size / 2}`}
+          />
+        </Svg>
       </View>
+      <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center', position: 'absolute', zIndex: 2 }}>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <Text style={{ fontSize: 56, color: '#000', fontFamily: 'SpaceGrotesk-Bold', textAlign: 'center', marginBottom: 8 }}>{formatTime(timeLeft)}</Text>
+          <TouchableOpacity style={{ marginTop: 0 }} onPress={toggleTimer}>
+            <Ionicons name={isRunning ? 'pause' : 'play'} size={64} color="#000" />
+          </TouchableOpacity>
+        </View>
+      </View>
+      {/* Spacer to keep layout */}
+      <View style={{ width: size, height: size, opacity: 0 }} />
     </View>
   );
 }

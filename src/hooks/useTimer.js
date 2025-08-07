@@ -8,9 +8,8 @@ export default function useTimer(initialSeconds = 3600) {
   const intervalRef = useRef(null);
 
   useEffect(() => {
-    let interval = null;
     if (isRunning && timeLeft > 0) {
-      interval = setInterval(() => {
+      intervalRef.current = setInterval(() => {
         setTimeLeft(prevTime => {
           const newTime = prevTime - 1;
           if (newTime <= 0) {
@@ -21,13 +20,14 @@ export default function useTimer(initialSeconds = 3600) {
           return newTime;
         });
       }, 1000);
-      intervalRef.current = interval;
-    } else if (interval) {
-      clearInterval(interval);
+    } else if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
     }
     return () => {
-      if (interval) {
-        clearInterval(interval);
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
       }
     };
   }, [isRunning, timeLeft]);

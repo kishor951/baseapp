@@ -1,10 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import Timer from '../components/Timer';
 import TaskDropdown from '../components/TaskDropdown';
+import { Modal, TextInput } from 'react-native'; // Added import for Modal and TextInput
+import { Ionicons } from '@expo/vector-icons';
 import AIInput from '../components/AIInput';
 
 const TIMER_OPTIONS = [
+  { label: '10 sec (Test)', value: 10 },
   { label: '15 mins', value: 15 * 60 },
   { label: '25 mins', value: 25 * 60 },
   { label: '30 mins', value: 30 * 60 },
@@ -27,6 +30,30 @@ export default function FocusScreen({
   setTimeLeft,
   setInitialTime
 }) {
+  const [showLogModal, setShowLogModal] = useState(false);
+  const [logText, setLogText] = useState('');
+  const [logTask, setLogTask] = useState(currentTask);
+  const [timerStart, setTimerStart] = useState(null);
+  const [timerEnd, setTimerEnd] = useState(null);
+  const [logDuration, setLogDuration] = useState(selectedTimer);
+
+  useEffect(() => {
+    if (isRunning && timeLeft === selectedTimer) {
+      setTimerStart(new Date());
+      setLogDuration(selectedTimer);
+    }
+    if (!isRunning && timerStart && timeLeft !== selectedTimer) {
+      setTimerEnd(new Date());
+    }
+  }, [isRunning, timeLeft, selectedTimer]);
+
+  useEffect(() => {
+    if (timeLeft === 0) {
+      setShowLogModal(true);
+      setLogTask(currentTask);
+      setTimerEnd(new Date());
+    }
+  }, [timeLeft, currentTask]);
   const [showTimerDropdown, setShowTimerDropdown] = useState(false);
   const [selectedTimer, setSelectedTimer] = useState(TIMER_OPTIONS[0].value); // Default 15 mins
 
@@ -52,7 +79,7 @@ export default function FocusScreen({
   };
 
   return (
-    <>
+    <View style={{ flex: 1 }}>
       {/* Task Section */}
       <View style={{ paddingHorizontal: 20, marginTop: 20 }}>
         <Text style={{ fontSize: 16, color: '#666', marginBottom: 10 }}>Task</Text>
@@ -136,6 +163,71 @@ export default function FocusScreen({
       <View style={{ paddingHorizontal: 20, marginTop: 40 }}>
         <AIInput />
       </View>
-    </>
+      {/* Log Time Overlay Modal */}
+      <Modal visible={showLogModal} transparent animationType="slide">
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.3)' }}>
+          <View style={{ backgroundColor: '#fff', borderRadius: 24, padding: 24, width: '90%', alignItems: 'center' }}>
+            <Text style={{ fontSize: 22, fontWeight: 'bold', marginBottom: 18, textAlign: 'center' }}>Log your Time</Text>
+            <Text style={{ fontSize: 16, fontWeight: '500', marginBottom: 8, alignSelf: 'flex-start' }}>Task</Text>
+            <View style={{ width: '100%', marginBottom: 18 }}>
+              <TouchableOpacity style={{ backgroundColor: '#000', borderRadius: 10, padding: 14, alignItems: 'center' }}>
+                <Text style={{ color: '#fff', fontSize: 16 }}>{logTask?.title || 'Select a task'}</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={{ backgroundColor: '#f5f5f5', borderRadius: 16, padding: 18, width: '100%', alignItems: 'center', marginBottom: 18 }}>
+              <Text style={{ fontSize: 16, color: '#666', marginBottom: 4 }}>
+                {timerStart && timerEnd
+                  ? `${formatAMPM(timerStart)} - ${formatAMPM(timerEnd)}`
+                  : '--:-- -- - --:-- --'}
+              </Text>
+              <Text style={{ fontSize: 40, fontWeight: 'bold', color: '#000' }}>{formatDuration(logDuration)}</Text>
+              <Text style={{ fontSize: 16, color: '#666', marginTop: 4 }}>Time Spent</Text>
+            </View>
+            <View style={{ width: '100%', marginBottom: 18 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: '#e0e0e0', paddingHorizontal: 14 }}>
+                <TextInput
+                  style={{ flex: 1, height: 48, fontSize: 16 }}
+                  placeholder="Tell, What you did?"
+                  value={logText}
+                  onChangeText={setLogText}
+                />
+                <Ionicons name="mic-outline" size={24} color="#666" style={{ marginLeft: 8 }} />
+              </View>
+            </View>
+            <TouchableOpacity
+              style={{ backgroundColor: '#000', borderRadius: 12, paddingVertical: 16, width: '100%', alignItems: 'center', marginTop: 8 }}
+              onPress={() => {
+                // Save logText and logTask somewhere if needed
+                setShowLogModal(false);
+                setLogText('');
+                setTimerStart(null);
+                setTimerEnd(null);
+              }}
+            >
+              <Text style={{ color: '#fff', fontSize: 18, fontWeight: 'bold' }}>ENTER</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    </View>
   );
+}
+
+// Helper functions
+function formatAMPM(date) {
+  if (!date) return '--:-- --';
+  let hours = date.getHours();
+  let minutes = date.getMinutes();
+  let ampm = hours >= 12 ? 'PM' : 'AM';
+  hours = hours % 12;
+  hours = hours ? hours : 12; // the hour '0' should be '12'
+  minutes = minutes < 10 ? '0' + minutes : minutes;
+  return `${hours}:${minutes} ${ampm}`;
+}
+
+function formatDuration(seconds) {
+  if (!seconds) return '00:00';
+  const min = Math.floor(seconds / 60);
+  const sec = seconds % 60;
+  return `${min > 0 ? min + ':' : ''}${sec.toString().padStart(2, '0')}`;
 }

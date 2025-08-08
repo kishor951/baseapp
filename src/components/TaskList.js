@@ -2,7 +2,7 @@ import React from 'react';
 import { FlatList, View, Text, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-export default function TaskList({ tasks, toggleTaskCompletion, deleteTask }) {
+export default function TaskList({ tasks, toggleTaskCompletion, deleteTask, openEditTaskModal }) {
   return (
     <FlatList
       data={tasks}
@@ -13,7 +13,7 @@ export default function TaskList({ tasks, toggleTaskCompletion, deleteTask }) {
             <Ionicons name={item.completed ? 'checkmark-circle' : 'ellipse-outline'} size={24} color={item.completed ? '#000' : '#666'} />
           </TouchableOpacity>
           <Text style={[{ flex: 1, fontSize: 16, color: '#333' }, item.completed && { textDecorationLine: 'line-through', color: '#666' }]}>{item.title}</Text>
-          <TouchableOpacity style={{ marginLeft: 10, padding: 5 }}>
+          <TouchableOpacity style={{ marginLeft: 10, padding: 5 }} onPress={() => openEditTaskModal(item)}>
             <Ionicons name="create-outline" size={20} color="#666" />
           </TouchableOpacity>
           <TouchableOpacity style={{ marginLeft: 10, padding: 5 }} onPress={() => deleteTask(item.id)}>

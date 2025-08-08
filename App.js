@@ -7,7 +7,7 @@ import AppLoading from 'expo-app-loading';
 
 import useTimer from './src/hooks/useTimer';
 import FocusScreen from './src/screens/FocusScreen';
-import TaskRoutineScreen from './src/screens/TaskRoutineScreen';
+import RoutineScreen from './src/screens/RoutineScreen';
 
 import SplashScreen from './src/screens/SplashScreen';
 
@@ -116,12 +116,15 @@ export default function App() {
         />
       )}
 
-      {currentScreen === 'Task & Routine' && (
-        <TaskRoutineScreen
+      {currentScreen === 'Routines' && (
+        <RoutineScreen
           tasks={tasks}
           toggleTaskCompletion={toggleTaskCompletion}
           deleteTask={deleteTask}
           setShowTaskModal={setShowTaskModal}
+          editTask={(id, newTitle) => {
+            setTasks(tasks => tasks.map(task => task.id === id ? { ...task, title: newTitle } : task));
+          }}
         />
       )}
 
@@ -165,15 +168,15 @@ export default function App() {
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.navItem}
-          onPress={() => setCurrentScreen('Task & Routine')}
+          onPress={() => setCurrentScreen('Routines')}
         >
           <Ionicons
-            name="checkmark-circle-outline"
+            name="repeat-outline"
             size={24}
-            color={currentScreen === 'Task & Routine' ? "#000" : "#666"}
+            color={currentScreen === 'Routines' ? "#000" : "#666"}
           />
-          <Text style={currentScreen === 'Task & Routine' ? styles.navText : styles.navTextInactive}>
-            Task & Routine
+          <Text style={currentScreen === 'Routines' ? styles.navText : styles.navTextInactive}>
+            Routines
           </Text>
         </TouchableOpacity>
         <TouchableOpacity

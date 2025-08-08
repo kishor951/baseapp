@@ -7,6 +7,7 @@ import AppLoading from 'expo-app-loading';
 
 import useTimer from './src/hooks/useTimer';
 import FocusScreen from './src/screens/FocusScreen';
+import TimelineScreen from './src/screens/TimelineScreen';
 import RoutineScreen from './src/screens/RoutineScreen';
 
 import SplashScreen from './src/screens/SplashScreen';
@@ -15,6 +16,9 @@ export default function App() {
   const [showSplash, setShowSplash] = useState(true);
   const [fontsLoaded, setFontsLoaded] = useState(false);
   const [currentScreen, setCurrentScreen] = useState('Focus');
+  const [timeLogs, setTimeLogs] = useState([]);
+  const [idleStart, setIdleStart] = useState(null);
+  const [routines, setRoutines] = useState([]);
   const [tasks, setTasks] = useState([
     { id: 1, title: 'Designing a new app', completed: false },
     { id: 2, title: 'Create a app for launch', completed: false },
@@ -95,8 +99,17 @@ export default function App() {
       <View style={styles.header}>
         <Ionicons name="person-circle-outline" size={32} color="#666" />
         <Text style={[styles.title, { fontFamily: 'SpaceGrotesk-Bold' }]}>WorkSight!</Text>
-        <Ionicons name="menu-outline" size={32} color="#666" />
+        <TouchableOpacity onPress={() => setCurrentScreen('Timeline')}>
+          <Ionicons name="calendar-outline" size={32} color="#666" />
+        </TouchableOpacity>
       </View>
+      {currentScreen === 'Timeline' && (
+        <TimelineScreen
+          timeLogs={timeLogs}
+          routines={routines}
+          idleStart={idleStart}
+        />
+      )}
 
       {currentScreen === 'Focus' && (
         <FocusScreen
@@ -113,6 +126,10 @@ export default function App() {
           addTime={addTime}
           setTimeLeft={setTimeLeft}
           setInitialTime={setInitialTime}
+          setTimeLogs={setTimeLogs}
+          timeLogs={timeLogs}
+          setIdleStart={setIdleStart}
+          idleStart={idleStart}
         />
       )}
 
@@ -125,6 +142,8 @@ export default function App() {
           editTask={(id, newTitle) => {
             setTasks(tasks => tasks.map(task => task.id === id ? { ...task, title: newTitle } : task));
           }}
+          routines={routines}
+          setRoutines={setRoutines}
         />
       )}
 

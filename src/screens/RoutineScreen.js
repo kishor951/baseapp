@@ -13,8 +13,9 @@ export default function RoutineScreen({
   deleteTask = () => {},
   setShowTaskModal = () => {},
   editTask = () => {},
+  routines = [],
+  setRoutines = () => {},
 }) {
-  const [routines, setRoutines] = useState(initialRoutines);
   const [showModal, setShowModal] = useState(false);
   const [editRoutine, setEditRoutine] = useState(null);
   const [routineName, setRoutineName] = useState('');

@@ -1,21 +1,58 @@
+
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, FlatList } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, FlatList, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-const timelineData = [
-  {
-    day: 'Mon',
-    date: 20,
-    blocks: [
-      { id: 1, title: 'Create a app for launch', start: '12:00PM', end: '1:00AM' },
-      { id: 2, title: 'Idle Time', start: '1:00PM', end: '2:00AM' },
-    ],
-  },
-];
+const getCurrentDayInfo = () => {
+  const now = new Date();
+  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  return {
+    day: days[now.getDay()],
+    date: now.getDate(),
+    month: now.toLocaleString('default', { month: 'short' }),
+    year: now.getFullYear(),
+    hour: now.getHours(),
+    minute: now.getMinutes(),
+  };
+};
 
-export default function TimelineScreen() {
+export default function TimelineScreen({ timeLogs = [], routines = [], idleStart }) {
   const [activeTab, setActiveTab] = useState('Blocks');
-  const [selectedMonth, setSelectedMonth] = useState('Jan');
+  const dayInfo = getCurrentDayInfo();
+  const [selectedMonth, setSelectedMonth] = useState(dayInfo.month);
+  // Filter logs and routines for today
+  const today = new Date();
+  const isSameDay = (d1, d2) => d1.getDate() === d2.getDate() && d1.getMonth() === d2.getMonth() && d1.getFullYear() === d2.getFullYear();
+  let blocks = [
+    ...timeLogs.filter(log => isSameDay(new Date(log.start), today)).map(log => ({
+      id: log.id,
+      title: log.title,
+      start: formatAMPM(new Date(log.start)),
+      end: formatAMPM(new Date(log.end)),
+      type: 'log',
+      description: log.description,
+    })),
+    ...routines.filter(r => isSameDay(today, today)).map(r => ({
+      id: r.id,
+      title: r.name,
+      start: r.time,
+      end: r.duration ? `${parseInt(r.time) + r.duration} mins` : '',
+      type: 'routine',
+    })),
+  ];
+  // Add live idle block if no logs/routines
+  if (blocks.length === 0 && idleStart) {
+    const now = new Date();
+    blocks.push({
+      id: 'idle',
+      title: 'Idle Time',
+      start: formatAMPM(idleStart),
+      end: formatAMPM(now),
+      type: 'idle',
+    });
+  }
+  const timelineHeight = 400;
+  const nowY = ((dayInfo.hour * 60 + dayInfo.minute) / (24 * 60)) * timelineHeight;
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -38,34 +75,36 @@ export default function TimelineScreen() {
           <Text style={activeTab === 'Summary' ? styles.activeTabText : styles.tabText}>Summary</Text>
         </TouchableOpacity>
       </View>
-      {/* Timeline Blocks */}
+      {/* Timeline Blocks for current day only */}
       {activeTab === 'Blocks' && (
-        <FlatList
-          data={timelineData}
-          keyExtractor={item => item.day + item.date}
-          renderItem={({ item }) => (
-            <View style={styles.dayRow}>
-              <View style={styles.dayBox}>
-                <Text style={styles.dayText}>{item.day}</Text>
-                <Text style={styles.dateText}>{item.date}</Text>
-              </View>
-              <View style={{ flex: 1 }}>
-                {item.blocks.map(block => (
-                  <View key={block.id} style={styles.blockRow}>
-                    <View style={styles.blockBox}>
-                      <Text style={styles.blockTitle}>{block.title}</Text>
-                      <Text style={styles.blockTime}>{block.start} - {block.end}</Text>
-                    </View>
-                    <TouchableOpacity style={styles.editButton}>
-                      <Ionicons name="pencil" size={20} color="#42281A" />
-                    </TouchableOpacity>
-                  </View>
-                ))}
-              </View>
+        <View style={{ marginTop: 20, marginHorizontal: 20 }}>
+          <View style={styles.dayRow}>
+            <View style={styles.dayBox}>
+              <Text style={styles.dayText}>{dayInfo.day}</Text>
+              <Text style={styles.dateText}>{dayInfo.date}</Text>
             </View>
-          )}
-          style={{ marginTop: 20 }}
-        />
+            <View style={{ flex: 1, position: 'relative', height: timelineHeight }}>
+              {/* Render blocks here if available */}
+              {blocks.length === 0 && (
+                <Text style={{ color: '#42281A', fontSize: 16, marginTop: 20 }}>No activities logged for today.</Text>
+              )}
+              {blocks.map((block, idx) => (
+                <View key={block.id} style={{ ...styles.blockRow, position: 'absolute', top: (timelineHeight / blocks.length) * idx, left: 0, right: 0 }}>
+                  <View style={styles.blockBox}>
+                    <Text style={styles.blockTitle}>{block.title}</Text>
+                    <Text style={styles.blockTime}>{block.start} - {block.end}</Text>
+                  </View>
+                  <TouchableOpacity style={styles.editButton}>
+                    <Ionicons name="pencil" size={20} color="#42281A" />
+                  </TouchableOpacity>
+                </View>
+              ))}
+              {/* Current time horizontal line */}
+              <View style={{ position: 'absolute', left: 0, right: 0, top: nowY, height: 2, backgroundColor: '#FF6F61', borderRadius: 2 }} />
+              <Text style={{ position: 'absolute', left: 0, top: nowY - 12, color: '#FF6F61', fontWeight: 'bold', fontSize: 12 }}>{`${dayInfo.hour}:${dayInfo.minute < 10 ? '0' + dayInfo.minute : dayInfo.minute}`}</Text>
+            </View>
+          </View>
+        </View>
       )}
       {/* Summary Tab Placeholder */}
       {activeTab === 'Summary' && (
@@ -162,32 +201,5 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginTop: 2,
   },
-  blockRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  blockBox: {
-    backgroundColor: '#42281A',
-    borderRadius: 16,
-    padding: 16,
-    flex: 1,
-  },
-  blockTitle: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '500',
-    marginBottom: 2,
-  },
-  blockTime: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  editButton: {
-    backgroundColor: '#EAD7D1',
-    borderRadius: 8,
-    padding: 8,
-    marginLeft: 8,
-  },
+  // ...existing code...
 });

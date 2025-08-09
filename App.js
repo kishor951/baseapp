@@ -5,6 +5,8 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Font from 'expo-font';
 import AppLoading from 'expo-app-loading';
 
+import { TimeLogProvider } from './src/context/TimeLogContext';
+
 import useTimer from './src/hooks/useTimer';
 import FocusScreen from './src/screens/FocusScreen';
 import TimelineScreen from './src/screens/TimelineScreen';
@@ -93,139 +95,136 @@ export default function App() {
   // }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar style="auto" />
-      {/* Header */}
-      <View style={styles.header}>
-        <Ionicons name="person-circle-outline" size={32} color="#666" />
-        <Text style={[styles.title, { fontFamily: 'SpaceGrotesk-Bold' }]}>WorkSight!</Text>
-        <TouchableOpacity onPress={() => setCurrentScreen('Timeline')}>
-          <Ionicons name="calendar-outline" size={32} color="#666" />
-        </TouchableOpacity>
-      </View>
-      {currentScreen === 'Timeline' && (
-        <TimelineScreen
-          timeLogs={timeLogs}
-          routines={routines}
-          idleStart={idleStart}
-        />
-      )}
+    <TimeLogProvider>
+      <SafeAreaView style={styles.container}>
+        <StatusBar style="auto" />
+        {/* Header */}
+        <View style={styles.header}>
+          <Ionicons name="person-circle-outline" size={32} color="#666" />
+          <Text style={[styles.title, { fontFamily: 'SpaceGrotesk-Bold' }]}>WorkSight!</Text>
+          <TouchableOpacity onPress={() => setCurrentScreen('Timeline')}>
+            <Ionicons name="calendar-outline" size={32} color="#666" />
+          </TouchableOpacity>
+        </View>
+        {currentScreen === 'Timeline' && (
+          <TimelineScreen
+            routines={routines}
+            idleStart={idleStart}
+          />
+        )}
 
-      {currentScreen === 'Focus' && (
-        <FocusScreen
-          currentTask={currentTask}
-          tasks={tasks}
-          showTaskDropdown={showTaskDropdown}
-          setShowTaskDropdown={setShowTaskDropdown}
-          selectTask={selectTask}
-          timeLeft={timeLeft}
-          isRunning={isRunning}
-          toggleTimer={toggleTimer}
-          progress={progress}
-          restartTimer={restartTimer}
-          addTime={addTime}
-          setTimeLeft={setTimeLeft}
-          setInitialTime={setInitialTime}
-          setTimeLogs={setTimeLogs}
-          timeLogs={timeLogs}
-          setIdleStart={setIdleStart}
-          idleStart={idleStart}
-        />
-      )}
+        {currentScreen === 'Focus' && (
+          <FocusScreen
+            currentTask={currentTask}
+            tasks={tasks}
+            showTaskDropdown={showTaskDropdown}
+            setShowTaskDropdown={setShowTaskDropdown}
+            selectTask={selectTask}
+            timeLeft={timeLeft}
+            isRunning={isRunning}
+            toggleTimer={toggleTimer}
+            progress={progress}
+            restartTimer={restartTimer}
+            addTime={addTime}
+            setTimeLeft={setTimeLeft}
+            setInitialTime={setInitialTime}
+          />
+        )}
 
-      {currentScreen === 'Routines' && (
-        <RoutineScreen
-          tasks={tasks}
-          toggleTaskCompletion={toggleTaskCompletion}
-          deleteTask={deleteTask}
-          setShowTaskModal={setShowTaskModal}
-          editTask={(id, newTitle) => {
-            setTasks(tasks => tasks.map(task => task.id === id ? { ...task, title: newTitle } : task));
-          }}
-          routines={routines}
-          setRoutines={setRoutines}
-        />
-      )}
+        {currentScreen === 'Routines' && (
+          <RoutineScreen
+            tasks={tasks}
+            toggleTaskCompletion={toggleTaskCompletion}
+            deleteTask={deleteTask}
+            setShowTaskModal={setShowTaskModal}
+            editTask={(id, newTitle) => {
+              setTasks(tasks => tasks.map(task => task.id === id ? { ...task, title: newTitle } : task));
+            }}
+            routines={routines}
+            setRoutines={setRoutines}
+          />
+        )}
 
-      {/* Task Creation Modal */}
-      <Modal visible={showTaskModal} transparent animationType="slide">
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Create New Task</Text>
-            <TextInput
-              style={styles.modalInput}
-              placeholder="Enter task title"
-              value={newTaskTitle}
-              onChangeText={setNewTaskTitle}
-            />
-            <View style={styles.modalButtons}>
-              <TouchableOpacity style={styles.modalButton} onPress={() => setShowTaskModal(false)}>
-                <Text style={styles.modalButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.modalButton, styles.modalButtonPrimary]} onPress={addTask}>
-                <Text style={styles.modalButtonTextPrimary}>Create</Text>
-              </TouchableOpacity>
+        {/* Task Creation Modal */}
+        <Modal visible={showTaskModal} transparent animationType="slide">
+          <View style={styles.modalContainer}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Create New Task</Text>
+              <TextInput
+                style={styles.modalInput}
+                placeholder="Enter task title"
+                value={newTaskTitle}
+                onChangeText={setNewTaskTitle}
+              />
+              <View style={styles.modalButtons}>
+                <TouchableOpacity style={styles.modalButton} onPress={() => setShowTaskModal(false)}>
+                  <Text style={styles.modalButtonText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.modalButton, styles.modalButtonPrimary]} onPress={addTask}>
+                  <Text style={styles.modalButtonTextPrimary}>Create</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
-        </View>
-      </Modal>
+        </Modal>
 
-      {/* Bottom Navigation */}
-      <View style={styles.bottomNav}>
-        <TouchableOpacity
-          style={styles.navItem}
-          onPress={() => setCurrentScreen('Focus')}
-        >
-          <Ionicons
-            name="radio-button-on"
-            size={24}
-            color={currentScreen === 'Focus' ? "#000" : "#666"}
-          />
-          <Text style={currentScreen === 'Focus' ? styles.navText : styles.navTextInactive}>
-            Focus
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.navItem}
-          onPress={() => setCurrentScreen('Routines')}
-        >
-          <Ionicons
-            name="repeat-outline"
-            size={24}
-            color={currentScreen === 'Routines' ? "#000" : "#666"}
-          />
-          <Text style={currentScreen === 'Routines' ? styles.navText : styles.navTextInactive}>
-            Routines
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.navItem}
-          onPress={() => setCurrentScreen('Jarvin')}
-        >
-          <Ionicons
-            name="sparkles-outline"
-            size={24}
-            color={currentScreen === 'Jarvin' ? "#000" : "#666"}
-          />
-          <Text style={currentScreen === 'Jarvin' ? styles.navText : styles.navTextInactive}>
-            Jarvin
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.navItem}
-          onPress={() => setCurrentScreen('Notes')}
-        >
-          <Ionicons
-            name="document-text-outline"
-            size={24}
-            color={currentScreen === 'Notes' ? "#000" : "#666"}
-          />
-          <Text style={currentScreen === 'Notes' ? styles.navText : styles.navTextInactive}>
-            Notes
-          </Text>
-        </TouchableOpacity>
-      </View>
-    </SafeAreaView>
+        {/* Bottom Navigation */}
+        <View style={styles.bottomNav}>
+          <TouchableOpacity
+            style={styles.navItem}
+            onPress={() => setCurrentScreen('Focus')}
+          >
+            <Ionicons
+              name="radio-button-on"
+              size={24}
+              color={currentScreen === 'Focus' ? "#000" : "#666"}
+            />
+            <Text style={currentScreen === 'Focus' ? styles.navText : styles.navTextInactive}>
+              Focus
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.navItem}
+            onPress={() => setCurrentScreen('Routines')}
+          >
+            <Ionicons
+              name="repeat-outline"
+              size={24}
+              color={currentScreen === 'Routines' ? "#000" : "#666"}
+            />
+            <Text style={currentScreen === 'Routines' ? styles.navText : styles.navTextInactive}>
+              Routines
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.navItem}
+            onPress={() => setCurrentScreen('Jarvin')}
+          >
+            <Ionicons
+              name="sparkles-outline"
+              size={24}
+              color={currentScreen === 'Jarvin' ? "#000" : "#666"}
+            />
+            <Text style={currentScreen === 'Jarvin' ? styles.navText : styles.navTextInactive}>
+              Jarvin
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.navItem}
+            onPress={() => setCurrentScreen('Notes')}
+          >
+            <Ionicons
+              name="document-text-outline"
+              size={24}
+              color={currentScreen === 'Notes' ? "#000" : "#666"}
+            />
+            <Text style={currentScreen === 'Notes' ? styles.navText : styles.navTextInactive}>
+              Notes
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    </TimeLogProvider>
   );
 }
 

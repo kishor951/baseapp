@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Modal } from 'react-native';
 import { View, Text, TouchableOpacity, StyleSheet, FlatList, Dimensions, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTimeLogs } from '../context/TimeLogContext';
 
 const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const months = [
@@ -42,7 +43,8 @@ function getBlockPosition(start, end) {
   return { top, height };
 }
 
-export default function TimelineScreen({ timeLogs = [], routines = [], idleStart }) {
+export default function TimelineScreen({ routines = [], idleStart }) {
+  const { timeLogs } = useTimeLogs();
   const [activeTab, setActiveTab] = useState('Blocks');
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [monthModalVisible, setMonthModalVisible] = useState(false);

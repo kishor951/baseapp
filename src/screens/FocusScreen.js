@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import Timer from '../components/Timer';
+import { useTimeLogs } from '../context/TimeLogContext';
 import TaskDropdown from '../components/TaskDropdown';
 import { Modal, TextInput } from 'react-native'; // Added import for Modal and TextInput
 import { Ionicons } from '@expo/vector-icons';
@@ -30,6 +31,8 @@ export default function FocusScreen({
   setTimeLeft,
   setInitialTime
 }) {
+
+  const { addTimeLog } = useTimeLogs();
   const [showLogModal, setShowLogModal] = useState(false);
   const [logText, setLogText] = useState('');
   const [logTask, setLogTask] = useState(currentTask);
@@ -197,7 +200,19 @@ export default function FocusScreen({
             <TouchableOpacity
               style={{ backgroundColor: '#000', borderRadius: 12, paddingVertical: 16, width: '100%', alignItems: 'center', marginTop: 8 }}
               onPress={() => {
-                // Save logText and logTask somewhere if needed
+                // Save log to context for timeline
+                if (timerStart && timerEnd && logTask) {
+                  const logObj = {
+                    title: logTask?.title,
+                    description: logText,
+                    start: timerStart,
+                    end: timerEnd,
+                    duration: logDuration,
+                    date: new Date(timerStart).toDateString(),
+                  };
+                  console.log('Saving log:', logObj);
+                  addTimeLog(logObj);
+                }
                 setShowLogModal(false);
                 setLogText('');
                 setTimerStart(null);

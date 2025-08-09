@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, Modal, TextInput, StyleSheet, FlatList } from 'react-native';
+import { View, Text, TouchableOpacity, Modal, TextInput, StyleSheet, FlatList, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import TaskList from '../components/TaskList';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 const initialRoutines = [
   { id: 1, name: 'Yoga time', time: '12:30 AM', duration: 60 },
@@ -25,6 +26,10 @@ export default function RoutineScreen({
   const [showTaskEditModal, setShowTaskEditModal] = useState(false);
   const [editTaskObj, setEditTaskObj] = useState(null);
   const [editTaskTitle, setEditTaskTitle] = useState('');
+  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [durationMode, setDurationMode] = useState('preset');
+  const [customDuration, setCustomDuration] = useState('');
+
   const openEditTaskModal = (task) => {
     setEditTaskObj(task);
     setEditTaskTitle(task.title);
@@ -54,11 +59,13 @@ export default function RoutineScreen({
   };
 
   const saveRoutine = () => {
-    if (!routineName.trim() || !routineTime.trim() || !routineDuration.trim()) return;
+    if (!routineName.trim() || !routineTime || !(durationMode === 'custom' ? customDuration : routineDuration)) return;
+    const durationToSave = durationMode === 'custom' ? customDuration : routineDuration;
+    const formattedTime = formatAMPM(routineTime);
     if (editRoutine) {
-      setRoutines(routines.map(r => r.id === editRoutine.id ? { ...r, name: routineName, time: routineTime, duration: parseInt(routineDuration) } : r));
+      setRoutines(routines.map(r => r.id === editRoutine.id ? { ...r, name: routineName, time: formattedTime, duration: parseInt(durationToSave) } : r));
     } else {
-      setRoutines([...routines, { id: Date.now(), name: routineName, time: routineTime, duration: parseInt(routineDuration) }]);
+      setRoutines([...routines, { id: Date.now(), name: routineName, time: formattedTime, duration: parseInt(durationToSave) }]);
     }
     setShowModal(false);
   };
@@ -66,6 +73,17 @@ export default function RoutineScreen({
   const deleteRoutine = (id) => {
     setRoutines(routines.filter(r => r.id !== id));
   };
+
+  function formatAMPM(date) {
+    if (!date || typeof date === 'string') return date || '--:-- --';
+    let hours = date.getHours();
+    let minutes = date.getMinutes();
+    let ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12;
+    hours = hours ? hours : 12;
+    minutes = minutes < 10 ? '0' + minutes : minutes;
+    return `${hours}:${minutes} ${ampm}`;
+  }
 
   return (
     <View style={styles.container}>
@@ -146,6 +164,34 @@ export default function RoutineScreen({
             )}
             style={{ marginHorizontal: 20, marginTop: 20 }}
           />
+          {/* Timeline View */}
+          <View style={{ marginHorizontal: 20, marginTop: 10 }}>
+            <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 8 }}>Today's Routine Timeline</Text>
+            {routines.length === 0 ? (
+              <Text style={{ color: '#42281A', fontSize: 16 }}>No routines for today.</Text>
+            ) : (
+              routines
+                .slice()
+                .sort((a, b) => {
+                  // Sort by time (assumes format 'HH:MM AM/PM')
+                  const parseTime = t => {
+                    if (!t) return 0;
+                    const [hm, ap] = t.split(' ');
+                    let [h, m] = hm.split(':').map(Number);
+                    if (ap === 'PM' && h !== 12) h += 12;
+                    if (ap === 'AM' && h === 12) h = 0;
+                    return h * 60 + m;
+                  };
+                  return parseTime(a.time) - parseTime(b.time);
+                })
+                .map(routine => (
+                  <View key={routine.id} style={{ backgroundColor: '#EAD7D1', borderRadius: 12, padding: 14, marginBottom: 10 }}>
+                    <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#42281A' }}>{routine.name}</Text>
+                    <Text style={{ fontSize: 14, color: '#42281A' }}>Start: {routine.time} | Duration: {routine.duration} min</Text>
+                  </View>
+                ))
+            )}
+          </View>
           {/* Add Routine Button */}
           <TouchableOpacity style={styles.addButton} onPress={openAddModal}>
             <Text style={styles.addButtonText}>Add My Daily Routine</Text>
@@ -164,24 +210,66 @@ export default function RoutineScreen({
               value={routineName}
               onChangeText={setRoutineName}
             />
-            <TextInput
-              style={styles.input}
-              placeholder="Time (e.g. 12:30 AM)"
-              value={routineTime}
-              onChangeText={setRoutineTime}
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="Duration (mins)"
-              value={routineDuration}
-              onChangeText={setRoutineDuration}
-              keyboardType="numeric"
-            />
+            {/* Time Picker */}
+            <TouchableOpacity style={[styles.input, { justifyContent: 'center' }]} onPress={() => setShowTimePicker(true)}>
+              <Text style={{ fontSize: 16, color: '#42281A' }}>Start Time: {formatAMPM(routineTime)}</Text>
+            </TouchableOpacity>
+            {showTimePicker && (
+              <DateTimePicker
+                value={routineTime ? (typeof routineTime === 'string' ? new Date() : routineTime) : new Date()}
+                mode="time"
+                is24Hour={false}
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                onChange={(event, selectedDate) => {
+                  setShowTimePicker(false);
+                  if (selectedDate) setRoutineTime(selectedDate);
+                }}
+              />
+            )}
+            {/* Duration Selection */}
+            <Text style={{ fontSize: 16, marginBottom: 6 }}>Duration</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 }}>
+              {[15, 30, 45, 60, 90, 120].map(dur => (
+                <TouchableOpacity
+                  key={dur}
+                  style={{ backgroundColor: durationMode === 'preset' && routineDuration == dur ? '#42281A' : '#EAD7D1', borderRadius: 8, paddingHorizontal: 14, paddingVertical: 8, marginRight: 8, marginBottom: 8 }}
+                  onPress={() => { setRoutineDuration(dur.toString()); setDurationMode('preset'); }}
+                >
+                  <Text style={{ color: durationMode === 'preset' && routineDuration == dur ? '#fff' : '#42281A', fontWeight: 'bold' }}>{dur} min</Text>
+                </TouchableOpacity>
+              ))}
+              <TouchableOpacity
+                style={{ backgroundColor: durationMode === 'custom' ? '#42281A' : '#EAD7D1', borderRadius: 8, paddingHorizontal: 14, paddingVertical: 8, marginRight: 8, marginBottom: 8 }}
+                onPress={() => setDurationMode('custom')}
+              >
+                <Text style={{ color: durationMode === 'custom' ? '#fff' : '#42281A', fontWeight: 'bold' }}>Other</Text>
+              </TouchableOpacity>
+            </View>
+            {durationMode === 'custom' && (
+              <TextInput
+                style={styles.input}
+                placeholder="Enter duration (minutes)"
+                value={customDuration}
+                onChangeText={setCustomDuration}
+                keyboardType="numeric"
+              />
+            )}
             <View style={styles.modalButtons}>
               <TouchableOpacity style={styles.modalButton} onPress={() => setShowModal(false)}>
                 <Text style={styles.modalButtonText}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.modalButton, styles.modalButtonPrimary]} onPress={saveRoutine}>
+              <TouchableOpacity style={[styles.modalButton, styles.modalButtonPrimary]} onPress={() => {
+                // Use custom duration if selected
+                const durationToSave = durationMode === 'custom' ? customDuration : routineDuration;
+                const formattedTime = formatAMPM(routineTime);
+                if (!routineName.trim() || !routineTime || !durationToSave) return;
+                if (editRoutine) {
+                  setRoutines(routines.map(r => r.id === editRoutine.id ? { ...r, name: routineName, time: formattedTime, duration: parseInt(durationToSave) } : r));
+                } else {
+                  setRoutines([...routines, { id: Date.now(), name: routineName, time: formattedTime, duration: parseInt(durationToSave) }]);
+                }
+                setShowModal(false);
+              }}>
                 <Text style={styles.modalButtonTextPrimary}>Save</Text>
               </TouchableOpacity>
             </View>

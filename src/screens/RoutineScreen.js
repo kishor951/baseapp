@@ -164,34 +164,7 @@ export default function RoutineScreen({
             )}
             style={{ marginHorizontal: 20, marginTop: 20 }}
           />
-          {/* Timeline View */}
-          <View style={{ marginHorizontal: 20, marginTop: 10 }}>
-            <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 8 }}>Today's Routine Timeline</Text>
-            {routines.length === 0 ? (
-              <Text style={{ color: '#42281A', fontSize: 16 }}>No routines for today.</Text>
-            ) : (
-              routines
-                .slice()
-                .sort((a, b) => {
-                  // Sort by time (assumes format 'HH:MM AM/PM')
-                  const parseTime = t => {
-                    if (!t) return 0;
-                    const [hm, ap] = t.split(' ');
-                    let [h, m] = hm.split(':').map(Number);
-                    if (ap === 'PM' && h !== 12) h += 12;
-                    if (ap === 'AM' && h === 12) h = 0;
-                    return h * 60 + m;
-                  };
-                  return parseTime(a.time) - parseTime(b.time);
-                })
-                .map(routine => (
-                  <View key={routine.id} style={{ backgroundColor: '#EAD7D1', borderRadius: 12, padding: 14, marginBottom: 10 }}>
-                    <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#42281A' }}>{routine.name}</Text>
-                    <Text style={{ fontSize: 14, color: '#42281A' }}>Start: {routine.time} | Duration: {routine.duration} min</Text>
-                  </View>
-                ))
-            )}
-          </View>
+
           {/* Add Routine Button */}
           <TouchableOpacity style={styles.addButton} onPress={openAddModal}>
             <Text style={styles.addButtonText}>Add My Daily Routine</Text>

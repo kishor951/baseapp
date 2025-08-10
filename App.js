@@ -151,7 +151,7 @@ export default function App() {
         )}
 
         {currentScreen === 'Jarvin' && (
-          <JarvinScreen />
+          <JarvinScreen tasks={tasks} setTasks={setTasks} routines={routines} setRoutines={setRoutines} />
         )}
 
         {/* Task Creation Modal */}

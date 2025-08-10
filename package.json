@@ -18,7 +18,9 @@
     "expo-status-bar": "~2.2.3",
     "react": "19.0.0",
     "react-native": "0.79.5",
-    "react-native-svg": "^15.12.1"
+    "react-native-markdown-display": "^7.0.2",
+    "react-native-svg": "^15.12.1",
+    "react-native-voice": "^0.3.0"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0"

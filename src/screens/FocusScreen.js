@@ -5,6 +5,7 @@ import { useTimeLogs } from '../context/TimeLogContext';
 import TaskDropdown from '../components/TaskDropdown';
 import { Modal, TextInput } from 'react-native'; // Added import for Modal and TextInput
 import { Ionicons } from '@expo/vector-icons';
+import { getSubtasksFromGoogleAI } from '../utils/googleAi';
 import AIInput from '../components/AIInput';
 
 const TIMER_OPTIONS = [

@@ -13,11 +13,12 @@ import TimelineScreen from './src/screens/TimelineScreen';
 import RoutineScreen from './src/screens/RoutineScreen';
 
 import SplashScreen from './src/screens/SplashScreen';
+import JarvinScreen from './src/screens/JarvinScreen';
 
 export default function App() {
   const [showSplash, setShowSplash] = useState(true);
   const [fontsLoaded, setFontsLoaded] = useState(false);
-  const [currentScreen, setCurrentScreen] = useState('Focus');
+  const [currentScreen, setCurrentScreen] = useState('Jarvin');
   const [timeLogs, setTimeLogs] = useState([]);
   const [idleStart, setIdleStart] = useState(null);
   const [routines, setRoutines] = useState([]);
@@ -147,6 +148,10 @@ export default function App() {
             routines={routines}
             setRoutines={setRoutines}
           />
+        )}
+
+        {currentScreen === 'Jarvin' && (
+          <JarvinScreen />
         )}
 
         {/* Task Creation Modal */}

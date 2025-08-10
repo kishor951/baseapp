@@ -10,6 +10,7 @@ export default function JarvinScreen({ tasks, setTasks, routines, setRoutines })
   const [pendingRoutine, setPendingRoutine] = useState(null);
   const [input, setInput] = useState('');
   const [isListening, setIsListening] = useState(false);
+  const [mode, setMode] = useState('ask'); // 'task', 'routine', 'ask'
   // Speech-to-text handlers
   React.useEffect(() => {
     Voice.onSpeechResults = (event) => {
@@ -65,7 +66,16 @@ export default function JarvinScreen({ tasks, setTasks, routines, setRoutines })
   };
   // Store messages as { role: 'USER'|'ASSISTANT', text: string }
   const [messages, setMessages] = useState([
-    { role: 'SYSTEM', text: "You are Jarvin, a concise, helpful productivity assistant. Output plain text unless asked for JSON. Avoid markdown unless requested. If the user asks to create a task or routine, return only JSON with fields: title, due_at (ISO 8601), recurrence_rule (RRULE), priority for tasks; name, steps[], timeblocks[] for routines." }
+    {
+      role: 'SYSTEM',
+      text:
+        `You are Jarvin, a concise, helpful productivity assistant. 
+If the user asks to create tasks (single or multiple), always return a JSON array of objects, each with: title, due_at (ISO 8601, optional), recurrence_rule (RRULE, optional), priority (low|medium|high, optional). 
+If the user asks for a routine, return a JSON object with: name, steps[], timeblocks[]. 
+Never output markdown unless requested. Never output plain text for task creation. 
+If the user message contains multiple tasks (comma, list, or any format), extract all task titles and return as an array. 
+Example: "create tasks: Buy milk, Walk dog, Call mom" → [{"title": "Buy milk"}, {"title": "Walk dog"}, {"title": "Call mom"}].`
+    }
   ]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -99,9 +109,9 @@ export default function JarvinScreen({ tasks, setTasks, routines, setRoutines })
         return;
       }
 
-      // Detect if user is creating a task or routine
-      const isTask = /create|add|new task/i.test(input);
-      const isRoutine = /create|add|new routine/i.test(input);
+      // Use mode to determine intent
+      const isTask = mode === 'task';
+      const isRoutine = mode === 'routine';
 
       // Build Gemini contents array from history (skip SYSTEM for Gemini API)
       const contents = messages
@@ -119,14 +129,17 @@ export default function JarvinScreen({ tasks, setTasks, routines, setRoutines })
         body.generation_config = {
           responseMimeType: "application/json",
           responseSchema: {
-            type: "object",
-            properties: {
-              title: { type: "string" },
-              due_at: { type: "string", format: "date-time" },
-              recurrence_rule: { type: "string" },
-              priority: { type: "string", enum: ["low", "medium", "high"] }
-            },
-            required: ["title", "due_at", "recurrence_rule", "priority"]
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                title: { type: "string" },
+                due_at: { type: "string", format: "date-time" },
+                recurrence_rule: { type: "string" },
+                priority: { type: "string", enum: ["low", "medium", "high"] }
+              },
+              required: ["title"]
+            }
           }
         };
       } else if (isRoutine) {
@@ -159,14 +172,35 @@ export default function JarvinScreen({ tasks, setTasks, routines, setRoutines })
           try {
             const parsed = JSON.parse(answer);
             if (isTask) {
-              // Ensure the task has a unique id
-              const newTask = {
-                ...parsed,
-                id: Date.now() + Math.floor(Math.random() * 10000),
-                completed: false
-              };
-              setTasks(prev => [...prev, newTask]);
-              answer = `Task created: ${newTask.title}`;
+              let newTasks = [];
+              if (Array.isArray(parsed)) {
+                newTasks = parsed.map(task => ({
+                  ...task,
+                  id: Date.now() + Math.floor(Math.random() * 10000),
+                  completed: false
+                }));
+                setTasks(prev => [...prev, ...newTasks]);
+                answer = `Tasks created: ${newTasks.map(t => t.title).join(', ')}`;
+              } else if (parsed && typeof parsed === 'object' && parsed.title) {
+                // Single task fallback
+                const newTask = {
+                  ...parsed,
+                  id: Date.now() + Math.floor(Math.random() * 10000),
+                  completed: false
+                };
+                setTasks(prev => [...prev, newTask]);
+                answer = `Task created: ${newTask.title}`;
+              } else {
+                // Fallback: try to extract comma-separated titles from plain text
+                const titles = answer.split(',').map(t => t.trim()).filter(Boolean);
+                newTasks = titles.map(title => ({
+                  title,
+                  id: Date.now() + Math.floor(Math.random() * 10000),
+                  completed: false
+                }));
+                setTasks(prev => [...prev, ...newTasks]);
+                answer = `Tasks created: ${titles.join(', ')}`;
+              }
             } else if (isRoutine) {
               // If no time, prompt user for time
               if (!parsed.time) {
@@ -204,11 +238,6 @@ export default function JarvinScreen({ tasks, setTasks, routines, setRoutines })
       <View style={{ padding: 20, borderBottomWidth: 1, borderBottomColor: '#eee' }}>
         <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#222' }}>Jarvin</Text>
         <Text style={{ fontSize: 16, color: '#666', marginTop: 4 }}>Ask anything, get instant answers powered by Gemini!</Text>
-        {error && (
-          <View style={{ marginTop: 12, padding: 12, backgroundColor: '#ffeaea', borderRadius: 8 }}>
-            <Text style={{ color: '#d00', fontSize: 15 }}>{error}</Text>
-          </View>
-        )}
       </View>
       <ScrollView style={{ flex: 1, padding: 20 }} contentContainerStyle={{ paddingBottom: 80 }}>
         {messages
@@ -227,6 +256,32 @@ export default function JarvinScreen({ tasks, setTasks, routines, setRoutines })
           ))}
         {loading && <ActivityIndicator size="small" color="#007AFF" style={{ marginTop: 10 }} />}
       </ScrollView>
+      {/* Mode Selector - centered above input, inserts text into input on press */}
+      <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginBottom: 8 }}>
+        {['Add Tasks', 'Add Routines', 'Ask Anything'].map(option => (
+          <TouchableOpacity
+            key={option}
+            onPress={() => {
+              setInput(prev => {
+                // Only insert if not already present at start
+                if (prev.startsWith(option + ': ')) return prev;
+                return option + ': ' + prev;
+              });
+            }}
+            style={{
+              paddingHorizontal: 16,
+              paddingVertical: 8,
+              borderBottomWidth: input.startsWith(option + ': ') ? 2 : 0,
+              borderBottomColor: input.startsWith(option + ': ') ? '#007AFF' : 'transparent',
+              marginHorizontal: 4,
+            }}
+          >
+            <Text style={{ fontSize: 16, fontWeight: input.startsWith(option + ': ') ? 'bold' : 'normal', color: '#222' }}>
+              {option}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
       <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#fff', padding: 16, borderTopWidth: 1, borderTopColor: '#eee', flexDirection: 'row', alignItems: 'center' }}>
         <TextInput
           style={{ flex: 1, height: 44, borderRadius: 10, borderWidth: 1, borderColor: '#ddd', paddingHorizontal: 14, fontSize: 16, backgroundColor: '#fafafa' }}

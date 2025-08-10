@@ -29,7 +29,8 @@ export default function FocusScreen({
   restartTimer,
   addTime,
   setTimeLeft,
-  setInitialTime
+  setInitialTime,
+  onCreateTask // callback to open create task modal in App.js
 }) {
 
   const { addTimeLog } = useTimeLogs();
@@ -39,6 +40,8 @@ export default function FocusScreen({
   const [timerStart, setTimerStart] = useState(null);
   const [timerEnd, setTimerEnd] = useState(null);
   const [logDuration, setLogDuration] = useState(selectedTimer);
+  // Filter out completed tasks
+  const incompleteTasks = tasks.filter(task => !task.completed);
 
   useEffect(() => {
     if (isRunning && timeLeft === selectedTimer) {
@@ -82,16 +85,64 @@ export default function FocusScreen({
   };
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1, position: 'relative' }}>
       {/* Task Section */}
       <View style={{ paddingHorizontal: 20, marginTop: 20 }}>
         <Text style={{ fontSize: 16, color: '#666', marginBottom: 10 }}>Task</Text>
-        <TouchableOpacity style={{ backgroundColor: '#000', borderRadius: 25, paddingHorizontal: 20, paddingVertical: 15, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }} onPress={() => setShowTaskDropdown(!showTaskDropdown)}>
-          <Text style={{ color: '#fff', fontSize: 16, fontWeight: '500' }}>{currentTask.title}</Text>
-          <Text style={{ color: '#fff' }}>▼</Text>
-        </TouchableOpacity>
-        {showTaskDropdown && (
-          <TaskDropdown tasks={tasks} selectTask={selectTask} />
+        {incompleteTasks.length > 0 ? (
+          <>
+            <TouchableOpacity style={{ backgroundColor: '#000', borderRadius: 25, paddingHorizontal: 20, paddingVertical: 15, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }} onPress={() => setShowTaskDropdown(!showTaskDropdown)}>
+              <Text style={{ color: '#fff', fontSize: 16, fontWeight: '500' }}>{currentTask?.title || 'Select a task'}</Text>
+              <Text style={{ color: '#fff' }}>▼</Text>
+            </TouchableOpacity>
+            {/* Floating Dropdown Overlay */}
+            {showTaskDropdown && (
+              <View style={{ position: 'absolute', top: 75, left: '50%', transform: [{ translateX: -100 }], width: 200, zIndex: 100 }} pointerEvents="box-none">
+                <TouchableOpacity
+                  style={{
+                    backgroundColor: 'rgba(0,0,0,0.1)',
+                    width: 200,
+                    height: Math.min(180, incompleteTasks.length * 50 + 10),
+                    borderRadius: 10,
+                    justifyContent: 'flex-start',
+                    alignItems: 'center',
+                  }}
+                  activeOpacity={1}
+                  onPress={() => setShowTaskDropdown(false)}
+                >
+                  <View style={{
+                    backgroundColor: '#fff',
+                    borderRadius: 10,
+                    borderWidth: 1,
+                    borderColor: '#e0e0e0',
+                    width: 200,
+                    marginTop: 0,
+                    zIndex: 101,
+                    elevation: 5,
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.2,
+                    shadowRadius: 8,
+                  }}
+                    pointerEvents="box-none"
+                  >
+                    {incompleteTasks.map(task => (
+                      <TouchableOpacity key={task.id} style={{ padding: 15, borderBottomWidth: 1, borderBottomColor: '#f0f0f0', width: '100%', backgroundColor: '#fff' }} onPress={() => { selectTask(task); setShowTaskDropdown(false); }}>
+                        <Text style={{ fontSize: 16, color: '#333', fontFamily: 'SpaceGrotesk-Regular', textAlign: 'center' }}>{task.title}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </TouchableOpacity>
+              </View>
+            )}
+          </>
+        ) : (
+          <TouchableOpacity
+            style={{ borderWidth: 1, borderColor: '#000', borderRadius: 25, paddingHorizontal: 20, paddingVertical: 15, alignItems: 'center', justifyContent: 'center', marginTop: 8 }}
+            onPress={onCreateTask}
+          >
+            <Text style={{ color: '#000', fontSize: 16, fontWeight: '500' }}>Create New Task</Text>
+          </TouchableOpacity>
         )}
       </View>
       {/* Timer Circle */}
@@ -217,6 +268,9 @@ export default function FocusScreen({
                 setLogText('');
                 setTimerStart(null);
                 setTimerEnd(null);
+                // Reset timer to selected time
+                setTimeLeft(selectedTimer);
+                setInitialTime(selectedTimer);
               }}
             >
               <Text style={{ color: '#fff', fontSize: 18, fontWeight: 'bold' }}>ENTER</Text>

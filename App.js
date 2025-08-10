@@ -21,12 +21,8 @@ export default function App() {
   const [timeLogs, setTimeLogs] = useState([]);
   const [idleStart, setIdleStart] = useState(null);
   const [routines, setRoutines] = useState([]);
-  const [tasks, setTasks] = useState([
-    { id: 1, title: 'Designing a new app', completed: false },
-    { id: 2, title: 'Create a app for launch', completed: false },
-    { id: 3, title: 'Research on the best selling SKUs in the category of Mobile', completed: false }
-  ]);
-  const [currentTask, setCurrentTask] = useState(tasks[0]);
+  const [tasks, setTasks] = useState([]);
+  const [currentTask, setCurrentTask] = useState(null);
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [showTaskDropdown, setShowTaskDropdown] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState('');
@@ -53,7 +49,11 @@ export default function App() {
         title: newTaskTitle.trim(),
         completed: false
       };
-      setTasks([...tasks, newTask]);
+      setTasks(prev => {
+        const updated = [...prev, newTask];
+        setCurrentTask(newTask); // Set the new task as current
+        return updated;
+      });
       setNewTaskTitle('');
       setShowTaskModal(false);
     }
@@ -128,6 +128,10 @@ export default function App() {
             addTime={addTime}
             setTimeLeft={setTimeLeft}
             setInitialTime={setInitialTime}
+            onCreateTask={() => {
+              setCurrentScreen('Routines');
+              setShowTaskModal(true);
+            }}
           />
         )}
 
@@ -193,7 +197,7 @@ export default function App() {
               color={currentScreen === 'Routines' ? "#000" : "#666"}
             />
             <Text style={currentScreen === 'Routines' ? styles.navText : styles.navTextInactive}>
-              Routines
+              Tasks & Routines
             </Text>
           </TouchableOpacity>
           <TouchableOpacity

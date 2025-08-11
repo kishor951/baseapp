@@ -2,11 +2,12 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, SafeAreaView } from 'react-native';
 import { PermissionsAndroid } from 'react-native';
 import Voice from 'react-native-voice';
+import * as Clipboard from 'expo-clipboard';
 import Markdown from 'react-native-markdown-display';
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 
-export default function JarvinScreen({ tasks, setTasks, routines, setRoutines }) {
+export default function JarvinScreen({ tasks, setTasks, routines, setRoutines, notes, setNotes }) {
   const [pendingRoutine, setPendingRoutine] = useState(null);
   const [input, setInput] = useState('');
   const [isListening, setIsListening] = useState(false);
@@ -65,8 +66,12 @@ export default function JarvinScreen({ tasks, setTasks, routines, setRoutines })
     }
   };
   // Store messages as { role: 'USER'|'ASSISTANT', text: string }
-  const [messages, setMessages] = useState([
-    {
+  const [messages, setMessages] = useState(() => {
+    try {
+      const saved = localStorage.getItem('jarvin_chats');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [{
       role: 'SYSTEM',
       text:
         `You are Jarvin, a concise, helpful productivity assistant. 
@@ -75,8 +80,15 @@ If the user asks for a routine, return a JSON object with: name, steps[], timebl
 Never output markdown unless requested. Never output plain text for task creation. 
 If the user message contains multiple tasks (comma, list, or any format), extract all task titles and return as an array. 
 Example: "create tasks: Buy milk, Walk dog, Call mom" → [{"title": "Buy milk"}, {"title": "Walk dog"}, {"title": "Call mom"}].`
-    }
-  ]);
+    }];
+  });
+
+  // Save chats to localStorage on change
+  React.useEffect(() => {
+    try {
+      localStorage.setItem('jarvin_chats', JSON.stringify(messages));
+    } catch {}
+  }, [messages]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   React.useEffect(() => {
@@ -234,7 +246,7 @@ Example: "create tasks: Buy milk, Walk dog, Call mom" → [{"title": "Buy milk"}
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 80}
       >
         <View style={{ padding: 20, paddingTop: 20, borderBottomWidth: 1, borderBottomColor: '#eee' }}>
           <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#222' }}>Jarvin</Text>
@@ -252,6 +264,28 @@ Example: "create tasks: Buy milk, Walk dog, Call mom" → [{"title": "Buy milk"}
                     <Text style={{ fontSize: 16, color: '#222' }}>{msg.text}</Text>
                   )}
                 </View>
+                {/* Chat actions for assistant messages */}
+                {msg.role === 'ASSISTANT' && (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
+                    <TouchableOpacity
+                      onPress={() => Clipboard.setStringAsync(msg.text)}
+                      style={{ flexDirection: 'row', alignItems: 'center', marginRight: 12 }}
+                    >
+                      <Ionicons name="copy" size={18} color="#666" />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => {
+                        if (setNotes) {
+                          setNotes(prev => [...prev, { id: Date.now(), text: msg.text, createdAt: Date.now(), from: 'Jarvin' }]);
+                        }
+                      }}
+                      style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#e0e0e0', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 2 }}
+                    >
+                      <Ionicons name="library" size={16} color="#007AFF" style={{ marginRight: 4 }} />
+                      <Text style={{ fontSize: 12, color: '#007AFF', fontWeight: '500' }}>Save to Library</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
                 <Text style={{ fontSize: 12, color: '#888', marginTop: 2, textAlign: msg.role === 'USER' ? 'right' : 'left' }}>{msg.role === 'USER' ? 'You' : 'Jarvin'}</Text>
               </View>
             ))}

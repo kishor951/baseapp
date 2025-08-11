@@ -15,6 +15,7 @@ import RoutineScreen from './src/screens/RoutineScreen';
 import SplashScreen from './src/screens/SplashScreen';
 import JarvinScreen from './src/screens/JarvinScreen';
 import SignupScreen from './src/screens/SignupScreen';
+import NotesScreen from './src/screens/NotesScreen';
 
 export default function App() {
   const [showSplash, setShowSplash] = useState(true);
@@ -29,6 +30,7 @@ export default function App() {
   const [showTaskDropdown, setShowTaskDropdown] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [user, setUser] = useState(null);
+  const [notes, setNotes] = useState([]);
 
   // Timer hook
   const {
@@ -166,7 +168,11 @@ export default function App() {
         )}
 
         {currentScreen === 'Jarvin' && (
-          <JarvinScreen tasks={tasks} setTasks={setTasks} routines={routines} setRoutines={setRoutines} />
+          <JarvinScreen tasks={tasks} setTasks={setTasks} routines={routines} setRoutines={setRoutines} notes={notes} setNotes={setNotes} />
+        )}
+
+        {currentScreen === 'Notes' && (
+          <NotesScreen notes={notes} setNotes={setNotes} />
         )}
 
         {/* Task Creation Modal */}

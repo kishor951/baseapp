@@ -14,6 +14,7 @@ import RoutineScreen from './src/screens/RoutineScreen';
 
 import SplashScreen from './src/screens/SplashScreen';
 import JarvinScreen from './src/screens/JarvinScreen';
+import SignupScreen from './src/screens/SignupScreen';
 
 export default function App() {
   const [showSplash, setShowSplash] = useState(true);
@@ -27,6 +28,7 @@ export default function App() {
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [showTaskDropdown, setShowTaskDropdown] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState('');
+  const [user, setUser] = useState(null);
 
   // Timer hook
   const {
@@ -90,6 +92,19 @@ export default function App() {
   if (!fontsLoaded) {
     return <AppLoading />;
   }
+
+  // Show signup screen if user is not signed in
+  if (!user) {
+    return (
+      <SignupScreen
+        onSignup={userObj => {
+          setUser(userObj);
+        }}
+        onSkip={() => setUser({ skipped: true })}
+      />
+    );
+  }
+
   // Disable splash screen for testing/development
   // if (showSplash) {
   //   return <SplashScreen onFinish={() => setShowSplash(false)} />;

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, SafeAreaView } from 'react-native';
 import { PermissionsAndroid } from 'react-native';
 import Voice from 'react-native-voice';
 import Markdown from 'react-native-markdown-display';
@@ -230,77 +230,79 @@ Example: "create tasks: Buy milk, Walk dog, Call mom" → [{"title": "Buy milk"}
   }
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: '#fff' }}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
-    >
-      <View style={{ padding: 20, borderBottomWidth: 1, borderBottomColor: '#eee' }}>
-        <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#222' }}>Jarvin</Text>
-        <Text style={{ fontSize: 16, color: '#666', marginTop: 4 }}>Ask anything, get instant answers powered by Gemini!</Text>
-      </View>
-      <ScrollView style={{ flex: 1, padding: 20 }} contentContainerStyle={{ paddingBottom: 80 }}>
-        {messages
-          .filter(msg => msg.role !== 'SYSTEM')
-          .map((msg, idx) => (
-            <View key={idx} style={{ marginBottom: 18, alignSelf: msg.role === 'USER' ? 'flex-end' : 'flex-start', maxWidth: '80%' }}>
-              <View style={{ backgroundColor: msg.role === 'USER' ? '#e0e0e0' : '#d1eaff', borderRadius: 12, padding: 14 }}>
-                {msg.role === 'ASSISTANT' ? (
-                  <Markdown style={{ body: { fontSize: 16, color: '#222' } }}>{msg.text}</Markdown>
-                ) : (
-                  <Text style={{ fontSize: 16, color: '#222' }}>{msg.text}</Text>
-                )}
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
+        <View style={{ padding: 20, paddingTop: 20, borderBottomWidth: 1, borderBottomColor: '#eee' }}>
+          <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#222' }}>Jarvin</Text>
+          <Text style={{ fontSize: 16, color: '#666', marginTop: 4 }}>Ask anything, get instant answers powered by Gemini!</Text>
+        </View>
+        <ScrollView style={{ flex: 1, padding: 20 }} contentContainerStyle={{ paddingBottom: 80 }}>
+          {messages
+            .filter(msg => msg.role !== 'SYSTEM')
+            .map((msg, idx) => (
+              <View key={idx} style={{ marginBottom: 18, alignSelf: msg.role === 'USER' ? 'flex-end' : 'flex-start', maxWidth: '80%' }}>
+                <View style={{ backgroundColor: msg.role === 'USER' ? '#e0e0e0' : '#d1eaff', borderRadius: 12, padding: 14 }}>
+                  {msg.role === 'ASSISTANT' ? (
+                    <Markdown style={{ body: { fontSize: 16, color: '#222' } }}>{msg.text}</Markdown>
+                  ) : (
+                    <Text style={{ fontSize: 16, color: '#222' }}>{msg.text}</Text>
+                  )}
+                </View>
+                <Text style={{ fontSize: 12, color: '#888', marginTop: 2, textAlign: msg.role === 'USER' ? 'right' : 'left' }}>{msg.role === 'USER' ? 'You' : 'Jarvin'}</Text>
               </View>
-              <Text style={{ fontSize: 12, color: '#888', marginTop: 2, textAlign: msg.role === 'USER' ? 'right' : 'left' }}>{msg.role === 'USER' ? 'You' : 'Jarvin'}</Text>
-            </View>
+            ))}
+          {loading && <ActivityIndicator size="small" color="#007AFF" style={{ marginTop: 10 }} />}
+        </ScrollView>
+        {/* Mode Selector - centered above input, inserts text into input on press */}
+        <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginBottom: 8 }}>
+          {['Add Tasks', 'Add Routines', 'Ask Anything'].map(option => (
+            <TouchableOpacity
+              key={option}
+              onPress={() => {
+                setInput(prev => {
+                  // Only insert if not already present at start
+                  if (prev.startsWith(option + ': ')) return prev;
+                  return option + ': ' + prev;
+                });
+              }}
+              style={{
+                paddingHorizontal: 16,
+                paddingVertical: 8,
+                borderBottomWidth: input.startsWith(option + ': ') ? 2 : 0,
+                borderBottomColor: input.startsWith(option + ': ') ? '#007AFF' : 'transparent',
+                marginHorizontal: 4,
+              }}
+            >
+              <Text style={{ fontSize: 16, fontWeight: input.startsWith(option + ': ') ? 'bold' : 'normal', color: '#222' }}>
+                {option}
+              </Text>
+            </TouchableOpacity>
           ))}
-        {loading && <ActivityIndicator size="small" color="#007AFF" style={{ marginTop: 10 }} />}
-      </ScrollView>
-      {/* Mode Selector - centered above input, inserts text into input on press */}
-      <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginBottom: 8 }}>
-        {['Add Tasks', 'Add Routines', 'Ask Anything'].map(option => (
+        </View>
+        <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#fff', padding: 16, borderTopWidth: 1, borderTopColor: '#eee', flexDirection: 'row', alignItems: 'center' }}>
+          <TextInput
+            style={{ flex: 1, height: 44, borderRadius: 10, borderWidth: 1, borderColor: '#ddd', paddingHorizontal: 14, fontSize: 16, backgroundColor: '#fafafa' }}
+            placeholder="Ask Jarvin anything..."
+            value={input}
+            onChangeText={setInput}
+            editable={!loading}
+            onSubmitEditing={sendMessage}
+          />
           <TouchableOpacity
-            key={option}
-            onPress={() => {
-              setInput(prev => {
-                // Only insert if not already present at start
-                if (prev.startsWith(option + ': ')) return prev;
-                return option + ': ' + prev;
-              });
-            }}
-            style={{
-              paddingHorizontal: 16,
-              paddingVertical: 8,
-              borderBottomWidth: input.startsWith(option + ': ') ? 2 : 0,
-              borderBottomColor: input.startsWith(option + ': ') ? '#007AFF' : 'transparent',
-              marginHorizontal: 4,
-            }}
+            onPress={isListening ? stopListening : startListening}
+            style={{ marginLeft: 10 }}
           >
-            <Text style={{ fontSize: 16, fontWeight: input.startsWith(option + ': ') ? 'bold' : 'normal', color: '#222' }}>
-              {option}
-            </Text>
+            <Ionicons name={isListening ? 'mic' : 'mic-outline'} size={28} color={isListening ? '#007AFF' : '#666'} />
           </TouchableOpacity>
-        ))}
-      </View>
-      <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#fff', padding: 16, borderTopWidth: 1, borderTopColor: '#eee', flexDirection: 'row', alignItems: 'center' }}>
-        <TextInput
-          style={{ flex: 1, height: 44, borderRadius: 10, borderWidth: 1, borderColor: '#ddd', paddingHorizontal: 14, fontSize: 16, backgroundColor: '#fafafa' }}
-          placeholder="Ask Jarvin anything..."
-          value={input}
-          onChangeText={setInput}
-          editable={!loading}
-          onSubmitEditing={sendMessage}
-        />
-        <TouchableOpacity
-          onPress={isListening ? stopListening : startListening}
-          style={{ marginLeft: 10 }}
-        >
-          <Ionicons name={isListening ? 'mic' : 'mic-outline'} size={28} color={isListening ? '#007AFF' : '#666'} />
-        </TouchableOpacity>
-        <TouchableOpacity onPress={sendMessage} disabled={loading || !input.trim()} style={{ marginLeft: 10 }}>
-          <Ionicons name="send" size={28} color={loading || !input.trim() ? '#ccc' : '#007AFF'} />
-        </TouchableOpacity>
-      </View>
-    </KeyboardAvoidingView>
+          <TouchableOpacity onPress={sendMessage} disabled={loading || !input.trim()} style={{ marginLeft: 10 }}>
+            <Ionicons name="send" size={28} color={loading || !input.trim() ? '#ccc' : '#007AFF'} />
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }

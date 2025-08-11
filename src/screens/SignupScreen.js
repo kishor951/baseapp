@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { supabase } from '../utils/supabaseClient';
 import { View, Text, TouchableOpacity, TextInput, StyleSheet } from 'react-native';
 import * as Google from 'expo-auth-session/providers/google';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,6 +8,8 @@ import Constants from 'expo-constants';
 export default function SignupScreen({ onSignup, onSkip }) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [mode, setMode] = useState('signup'); // 'signup' or 'login'
   const googleIds = Constants.expoConfig?.extra?.googleClientIds || {};
   const [request, response, promptAsync] = Google.useAuthRequest({
     expoClientId: googleIds.expoClientId,
@@ -25,13 +28,15 @@ export default function SignupScreen({ onSignup, onSkip }) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Create Account</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Name"
-        value={name}
-        onChangeText={setName}
-      />
+      <Text style={styles.title}>{mode === 'signup' ? 'Create Account' : 'Login'}</Text>
+      {mode === 'signup' && (
+        <TextInput
+          style={styles.input}
+          placeholder="Name"
+          value={name}
+          onChangeText={setName}
+        />
+      )}
       <TextInput
         style={styles.input}
         placeholder="Email"
@@ -39,15 +44,62 @@ export default function SignupScreen({ onSignup, onSkip }) {
         onChangeText={setEmail}
         keyboardType="email-address"
       />
-      <TouchableOpacity style={styles.signupButton} onPress={() => onSignup({ name, email, google: false })}>
-        <Text style={styles.signupButtonText}>Sign Up</Text>
-      </TouchableOpacity>
+      <TextInput
+        style={styles.input}
+        placeholder="Password"
+        value={password}
+        onChangeText={setPassword}
+        secureTextEntry
+      />
+      {mode === 'signup' ? (
+        <TouchableOpacity
+          style={styles.signupButton}
+          onPress={async () => {
+            // Supabase email/password signup
+            const { data, error } = await supabase.auth.signUp({
+              email,
+              password,
+              options: { data: { name } }
+            });
+            if (error) {
+              alert(error.message);
+            } else {
+              onSignup({ name, email, password, google: false, supabaseUser: data.user });
+            }
+          }}
+        >
+          <Text style={styles.signupButtonText}>Sign Up</Text>
+        </TouchableOpacity>
+      ) : (
+        <TouchableOpacity
+          style={styles.signupButton}
+          onPress={async () => {
+            // Supabase email/password login
+            const { data, error } = await supabase.auth.signInWithPassword({
+              email,
+              password,
+            });
+            if (error) {
+              alert(error.message);
+            } else {
+              onSignup({ email, password, google: false, login: true, supabaseUser: data.user });
+            }
+          }}
+        >
+          <Text style={styles.signupButtonText}>Login</Text>
+        </TouchableOpacity>
+      )}
       <TouchableOpacity style={styles.googleButton} onPress={() => promptAsync()} disabled={!request}>
         <Ionicons name="logo-google" size={24} color="#fff" style={{ marginRight: 8 }} />
-        <Text style={styles.googleButtonText}>Sign Up with Google</Text>
+        <Text style={styles.googleButtonText}>{mode === 'signup' ? 'Sign Up with Google' : 'Login with Google'}</Text>
       </TouchableOpacity>
       <TouchableOpacity style={styles.skipButton} onPress={onSkip}>
         <Text style={styles.skipButtonText}>Skip</Text>
+      </TouchableOpacity>
+      <TouchableOpacity style={{ marginTop: 16 }} onPress={() => setMode(mode === 'signup' ? 'login' : 'signup')}>
+        <Text style={{ color: '#007AFF', fontSize: 16, fontWeight: '600' }}>
+          {mode === 'signup' ? 'Already have an account? Login' : "Don't have an account? Sign Up"}
+        </Text>
       </TouchableOpacity>
     </View>
   );

@@ -1,6 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, SafeAreaView, Modal, TextInput } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, SafeAreaView, Modal, TextInput, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Font from 'expo-font';
 import AppLoading from 'expo-app-loading';
@@ -31,6 +31,7 @@ export default function App() {
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [user, setUser] = useState(null);
   const [notes, setNotes] = useState([]);
+  const [showJarvinChats, setShowJarvinChats] = useState(false);
 
   // Timer hook
   const {
@@ -118,12 +119,45 @@ export default function App() {
         <StatusBar style="auto" />
         {/* Header */}
         <View style={styles.header}>
-          <Ionicons name="person-circle-outline" size={32} color="#666" />
+          <TouchableOpacity onPress={() => setShowJarvinChats(true)}>
+            <Ionicons name="menu-outline" size={32} color="#666" />
+          </TouchableOpacity>
           <Text style={[styles.title, { fontFamily: 'SpaceGrotesk-Bold' }]}>WorkSight!</Text>
           <TouchableOpacity onPress={() => setCurrentScreen('Timeline')}>
             <Ionicons name="calendar-outline" size={32} color="#666" />
           </TouchableOpacity>
         </View>
+
+        {/* Jarvin Chats Modal */}
+        <Modal visible={showJarvinChats} transparent animationType="slide">
+          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.2)', justifyContent: 'center', alignItems: 'center' }}>
+            <View style={{ backgroundColor: '#fff', borderRadius: 20, width: '90%', maxHeight: '80%', padding: 20 }}>
+              <Text style={{ fontSize: 22, fontWeight: 'bold', marginBottom: 18, textAlign: 'center' }}>Jarvin Chats</Text>
+              <View style={{ flex: 1 }}>
+                {notes.filter(n => n.from === 'Jarvin').length === 0 ? (
+                  <Text style={{ color: '#888', textAlign: 'center', marginTop: 40 }}>No Jarvin chats saved yet.</Text>
+                ) : (
+                  <ScrollView style={{ maxHeight: 350 }}>
+                    {notes.filter(n => n.from === 'Jarvin').map((chat, idx) => (
+                      <View key={chat.id || idx} style={{ backgroundColor: '#f5f5f5', borderRadius: 10, padding: 14, marginBottom: 12 }}>
+                        <Text style={{ fontSize: 16, color: '#222' }}>{chat.text}</Text>
+                        <Text style={{ fontSize: 12, color: '#888', marginTop: 4 }}>{new Date(chat.createdAt).toLocaleString()}</Text>
+                      </View>
+                    ))}
+                  </ScrollView>
+                )}
+              </View>
+              {/* Profile name below chats */}
+              <View style={{ alignItems: 'center', marginTop: 18 }}>
+                <Text style={{ fontSize: 16, color: '#222', fontWeight: 'bold' }}>{user?.name || user?.email || 'Profile'}</Text>
+              </View>
+              <TouchableOpacity style={{ marginTop: 18, alignItems: 'center' }} onPress={() => setShowJarvinChats(false)}>
+                <Text style={{ color: '#007AFF', fontSize: 16, fontWeight: '600' }}>Close</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+  const [showJarvinChats, setShowJarvinChats] = useState(false);
         {currentScreen === 'Timeline' && (
           <TimelineScreen
             routines={routines}

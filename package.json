@@ -12,6 +12,7 @@
   "dependencies": {
     "@expo/vector-icons": "^14.1.0",
     "@react-native-community/datetimepicker": "^8.4.4",
+    "@supabase/supabase-js": "^2.54.0",
     "expo": "~53.0.20",
     "expo-app-loading": "^2.1.1",
     "expo-auth-session": "^6.2.1",

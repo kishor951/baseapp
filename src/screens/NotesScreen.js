@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import Markdown from 'react-native-markdown-display';
 import Voice from 'react-native-voice';
 import { View, Text, TouchableOpacity, TextInput, Modal, FlatList, StyleSheet, SafeAreaView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,6 +17,8 @@ export default function NotesScreen({ notes = [], setNotes }) {
   const [newIdea, setNewIdea] = useState('');
   // Remove duration
   const [editId, setEditId] = useState(null);
+  const [expandedNoteId, setExpandedNoteId] = useState(null);
+  const [searchText, setSearchText] = useState('');
 
   const handleAddIdea = () => {
     if (newIdea.trim()) {
@@ -90,58 +93,105 @@ export default function NotesScreen({ notes = [], setNotes }) {
           <Text style={[styles.toggleText, tab === 'Idea Pool' && styles.toggleTextActive]}>Idea Pool</Text>
         </TouchableOpacity>
       </View>
-      {/* Idea Pool List */}
+      {/* Idea Pool Search Bar */}
       {tab === 'Idea Pool' && (
-        <FlatList
-          data={ideas}
-          keyExtractor={item => (item.id ? item.id.toString() : String(item.text || Math.random()))}
-          contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 10, paddingBottom: 80 }}
-          renderItem={({ item }) => {
-            // ...existing code...
-            const now = Date.now();
-            const elapsedMs = now - item.createdAt;
-            const minutes = Math.floor(elapsedMs / 60000);
-            const hours = Math.floor(minutes / 60);
-            let timeInPool = '';
-            if (hours > 0) {
-              timeInPool = `${hours} hr${hours > 1 ? 's' : ''} ${minutes % 60} min${minutes % 60 !== 1 ? 's' : ''}`;
-            } else {
-              timeInPool = `${minutes} min${minutes !== 1 ? 's' : ''}`;
-            }
-            return (
-              <View style={styles.ideaItem}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.ideaText}>{item.text}</Text>
-                  <Text style={styles.ideaDuration}>In pool: {timeInPool}</Text>
+        <>
+          <View style={{ paddingHorizontal: 20, paddingTop: 10 }}>
+            <TextInput
+              style={{
+                borderWidth: 1,
+                borderColor: '#e0e0e0',
+                borderRadius: 10,
+                padding: 12,
+                fontSize: 16,
+                marginBottom: 10,
+                backgroundColor: '#fafafa',
+              }}
+              placeholder="Search ideas..."
+              value={searchText}
+              onChangeText={setSearchText}
+            />
+          </View>
+          <FlatList
+            data={ideas.filter(idea => idea.text.toLowerCase().includes(searchText.toLowerCase()))}
+            keyExtractor={item => (item.id ? item.id.toString() : String(item.text || Math.random()))}
+            contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 0, paddingBottom: 80 }}
+            renderItem={({ item }) => {
+              // ...existing code...
+              const now = Date.now();
+              const elapsedMs = now - item.createdAt;
+              const minutes = Math.floor(elapsedMs / 60000);
+              const hours = Math.floor(minutes / 60);
+              let timeInPool = '';
+              if (hours > 0) {
+                timeInPool = `${hours} hr${hours > 1 ? 's' : ''} ${minutes % 60} min${minutes % 60 !== 1 ? 's' : ''}`;
+              } else {
+                timeInPool = `${minutes} min${minutes !== 1 ? 's' : ''}`;
+              }
+              return (
+                <View style={styles.ideaItem}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.ideaText}>{item.text}</Text>
+                    <Text style={styles.ideaDuration}>In pool: {timeInPool}</Text>
+                  </View>
+                  <TouchableOpacity onPress={() => handleEdit(item)} style={styles.editButton}>
+                    <Ionicons name="pencil" size={22} color="#888" />
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => handleDelete(item.id)} style={styles.deleteButton}>
+                    <Ionicons name="trash" size={22} color="#d00" />
+                  </TouchableOpacity>
                 </View>
-                <TouchableOpacity onPress={() => handleEdit(item)} style={styles.editButton}>
-                  <Ionicons name="pencil" size={22} color="#888" />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => handleDelete(item.id)} style={styles.deleteButton}>
-                  <Ionicons name="trash" size={22} color="#d00" />
-                </TouchableOpacity>
-              </View>
-            );
-          }}
-        />
+              );
+            }}
+          />
+        </>
       )}
 
-      {/* Library List */}
+      {/* Library Search Bar */}
       {tab === 'Library' && (
-        <FlatList
-          data={notes}
-          keyExtractor={item => item.id?.toString()}
-          contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 10, paddingBottom: 80 }}
-          renderItem={({ item }) => (
-            <View style={styles.ideaItem}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.ideaText}>{item.text}</Text>
-                {item.from && <Text style={{ fontSize: 12, color: '#888' }}>From: {item.from}</Text>}
-                {item.createdAt && <Text style={{ fontSize: 12, color: '#888' }}>{new Date(item.createdAt).toLocaleString()}</Text>}
-              </View>
-            </View>
-          )}
-        />
+        <>
+          <View style={{ paddingHorizontal: 20, paddingTop: 10 }}>
+            <TextInput
+              style={{
+                borderWidth: 1,
+                borderColor: '#e0e0e0',
+                borderRadius: 10,
+                padding: 12,
+                fontSize: 16,
+                marginBottom: 10,
+                backgroundColor: '#fafafa',
+              }}
+              placeholder="Search notes..."
+              value={searchText}
+              onChangeText={setSearchText}
+            />
+          </View>
+          <FlatList
+            data={notes.filter(note => note.text.toLowerCase().includes(searchText.toLowerCase()))}
+            keyExtractor={item => item.id?.toString()}
+            contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 0, paddingBottom: 80 }}
+            renderItem={({ item }) => {
+              const isExpanded = expandedNoteId === item.id;
+              let displayText = item.text;
+              if (!isExpanded) {
+                const lines = item.text.split(/\r?\n/);
+                displayText = lines.slice(0, 2).join('\n');
+                if (lines.length > 2) displayText += '...';
+              }
+              return (
+                <TouchableOpacity onPress={() => setExpandedNoteId(isExpanded ? null : item.id)}>
+                  <View style={styles.ideaItem}>
+                    <View style={{ flex: 1 }}>
+                      <Markdown style={{ body: { fontSize: 16, color: '#222' } }}>{displayText}</Markdown>
+                      {item.from && <Text style={{ fontSize: 12, color: '#888' }}>From: {item.from}</Text>}
+                      {item.createdAt && <Text style={{ fontSize: 12, color: '#888' }}>{new Date(item.createdAt).toLocaleString()}</Text>}
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              );
+            }}
+          />
+        </>
       )}
       {/* Add Idea Button */}
       {tab === 'Idea Pool' && (

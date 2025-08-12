@@ -16,6 +16,7 @@ export default function JarvinScreen({
 }) {
   const [pendingRoutine, setPendingRoutine] = useState(null);
   const [input, setInput] = useState('');
+  const [inputHeight, setInputHeight] = useState(44);
   const [isListening, setIsListening] = useState(false);
   const [mode, setMode] = useState('ask'); // 'task', 'routine', 'ask'
   // Chat session management now handled in App.js
@@ -319,12 +320,33 @@ export default function JarvinScreen({
           </View>
           <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#fff', padding: 16, borderTopWidth: 1, borderTopColor: '#eee', flexDirection: 'row', alignItems: 'center' }}>
             <TextInput
-              style={{ flex: 1, height: 44, borderRadius: 10, borderWidth: 1, borderColor: '#ddd', paddingHorizontal: 14, fontSize: 16, backgroundColor: '#fafafa' }}
+              style={{
+                flex: 1,
+                minHeight: 44,
+                maxHeight: 120,
+                height: inputHeight,
+                borderRadius: 10,
+                borderWidth: 1,
+                borderColor: '#ddd',
+                paddingHorizontal: 14,
+                fontSize: 16,
+                backgroundColor: '#fafafa',
+                paddingTop: 10,
+                paddingBottom: 10,
+                textAlignVertical: 'top',
+              }}
               placeholder="Ask Jarvin anything..."
               value={input}
               onChangeText={setInput}
               editable={!loading}
               onSubmitEditing={sendMessage}
+              multiline
+              numberOfLines={1}
+              scrollEnabled={true}
+              onContentSizeChange={e => {
+                const newHeight = Math.min(Math.max(44, e.nativeEvent.contentSize.height), 120);
+                setInputHeight(newHeight);
+              }}
             />
             <TouchableOpacity
               onPress={isListening ? stopListening : startListening}

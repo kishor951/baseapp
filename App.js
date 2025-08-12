@@ -3,6 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import React, { useState } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, SafeAreaView, Modal, TextInput, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Animated } from 'react-native';
 import * as Font from 'expo-font';
 
 import { TimeLogProvider } from './src/context/TimeLogContext';
@@ -18,6 +19,8 @@ import SignupScreen from './src/screens/SignupScreen';
 import NotesScreen from './src/screens/NotesScreen';
 
 export default function App() {
+  // Search bar state for Jarvin Chats
+  const [chatSearchText, setChatSearchText] = useState('');
   // Jarvin chat sessions and selection
   const [chatSessions, setChatSessions] = useState([
     {
@@ -160,14 +163,37 @@ export default function App() {
         </View>
 
         {/* Jarvin Chats Modal - now shows chat sessions */}
-        <Modal visible={showJarvinChats} transparent animationType="slide">
-          <View style={{ flex: 1, flexDirection: 'row', backgroundColor: 'rgba(0,0,0,0.2)' }}>
+        <Modal visible={showJarvinChats} transparent animationType="none">
+          <Animated.View style={{
+            flex: 1,
+            flexDirection: 'row',
+            backgroundColor: 'rgba(0,0,0,0.2)',
+            transform: [{ translateX: showJarvinChats ? 0 : -400 }],
+            transitionProperty: 'transform',
+            transitionDuration: '300ms',
+          }}>
             <View style={{ width: 320, backgroundColor: '#f8f8f8', borderRightWidth: 1, borderRightColor: '#eee', height: '100%', paddingTop: 40, position: 'relative' }}>
               <View style={{ padding: 18, borderBottomWidth: 1, borderBottomColor: '#eee', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                 <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#222' }}>Jarvin Chats</Text>
                 <TouchableOpacity onPress={() => setShowJarvinChats(false)}>
                   <Ionicons name="menu-outline" size={28} color="#666" />
                 </TouchableOpacity>
+              </View>
+              {/* Search bar for chats */}
+              <View style={{ paddingHorizontal: 18, paddingTop: 8, paddingBottom: 8 }}>
+                <TextInput
+                  style={{
+                    borderWidth: 1,
+                    borderColor: '#e0e0e0',
+                    borderRadius: 10,
+                    padding: 10,
+                    fontSize: 16,
+                    backgroundColor: '#fafafa',
+                  }}
+                  placeholder="Search chats..."
+                  value={chatSearchText}
+                  onChangeText={setChatSearchText}
+                />
               </View>
               <TouchableOpacity onPress={() => {
                 // New chat
@@ -183,20 +209,28 @@ export default function App() {
                 <Text style={{ color: '#007AFF', fontWeight: '600', fontSize: 16 }}>+ New Chat</Text>
               </TouchableOpacity>
               <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 80 }}>
-                {chatSessions.map((chat, idx) => (
-                  <TouchableOpacity
-                    key={chat.id}
-                    onPress={() => {
-                      setCurrentChatId(chat.id);
-                      setShowJarvinChats(false);
-                    }}
-                    style={{ padding: 16, borderBottomWidth: 1, borderBottomColor: '#eee', backgroundColor: chat.id === currentChatId ? '#e0e0e0' : '#f8f8f8' }}
-                  >
-                    <Text style={{ fontSize: 16, color: '#222', fontWeight: chat.id === currentChatId ? 'bold' : 'normal' }} numberOfLines={1}>
-                      {chat.title !== 'New Chat' ? chat.title : (chat.messages[1]?.text?.slice(0, 32) || 'New Chat')}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+                {chatSessions
+                  .filter(chat => {
+                    const search = chatSearchText?.toLowerCase() || '';
+                    return (
+                      chat.title?.toLowerCase().includes(search) ||
+                      chat.messages?.some(m => m.text?.toLowerCase().includes(search))
+                    );
+                  })
+                  .map((chat, idx) => (
+                    <TouchableOpacity
+                      key={chat.id}
+                      onPress={() => {
+                        setCurrentChatId(chat.id);
+                        setShowJarvinChats(false);
+                      }}
+                      style={{ padding: 16, borderBottomWidth: 1, borderBottomColor: '#eee', backgroundColor: chat.id === currentChatId ? '#e0e0e0' : '#f8f8f8' }}
+                    >
+                      <Text style={{ fontSize: 16, color: '#222', fontWeight: chat.id === currentChatId ? 'bold' : 'normal' }} numberOfLines={1}>
+                        {chat.title !== 'New Chat' ? chat.title : (chat.messages[1]?.text?.slice(0, 32) || 'New Chat')}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
               </ScrollView>
               {/* Profile info pinned at bottom */}
               <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: 18, borderTopWidth: 1, borderTopColor: '#eee', backgroundColor: '#f8f8f8' }}>
@@ -205,8 +239,10 @@ export default function App() {
             </View>
             {/* Click outside to close */}
             <TouchableOpacity style={{ flex: 1 }} onPress={() => setShowJarvinChats(false)} />
-          </View>
+          </Animated.View>
         </Modal>
+  // Search bar state for Jarvin Chats
+  const [chatSearchText, setChatSearchText] = useState('');
 
         {currentScreen === 'Timeline' && (
           <TimelineScreen

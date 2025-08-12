@@ -94,7 +94,7 @@ export default function NotesScreen({ notes = [], setNotes }) {
       {tab === 'Idea Pool' && (
         <FlatList
           data={ideas}
-          keyExtractor={item => item.id.toString()}
+          keyExtractor={item => (item.id ? item.id.toString() : String(item.text || Math.random()))}
           contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 10, paddingBottom: 80 }}
           renderItem={({ item }) => {
             // ...existing code...
@@ -180,7 +180,7 @@ export default function NotesScreen({ notes = [], setNotes }) {
           </View>
         </View>
       </Modal>
-      // ...existing code...
+      {/* ...existing code... */}
     </SafeAreaView>
   );
 }

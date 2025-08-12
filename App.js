@@ -1,9 +1,9 @@
+import * as ExpoSplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import React, { useState } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, SafeAreaView, Modal, TextInput, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Font from 'expo-font';
-import AppLoading from 'expo-app-loading';
 
 import { TimeLogProvider } from './src/context/TimeLogContext';
 
@@ -78,22 +78,28 @@ export default function App() {
   };
 
   React.useEffect(() => {
-    Font.loadAsync({
-      'SpaceGrotesk-Regular': require('./assets/fonts/Space_Grotesk/static/SpaceGrotesk-Regular.ttf'),
-      'SpaceGrotesk-Medium': require('./assets/fonts/Space_Grotesk/static/SpaceGrotesk-Medium.ttf'),
-      'SpaceGrotesk-SemiBold': require('./assets/fonts/Space_Grotesk/static/SpaceGrotesk-SemiBold.ttf'),
-      'SpaceGrotesk-Bold': require('./assets/fonts/Space_Grotesk/static/SpaceGrotesk-Bold.ttf'),
-      'SpaceGrotesk-Light': require('./assets/fonts/Space_Grotesk/static/SpaceGrotesk-Light.ttf'),
-      'DMSans-Regular': require('./assets/fonts/DM_Sans/static/DMSans-Regular.ttf'),
-      'DMSans-Medium': require('./assets/fonts/DM_Sans/static/DMSans-Medium.ttf'),
-      'DMSans-SemiBold': require('./assets/fonts/DM_Sans/static/DMSans-SemiBold.ttf'),
-      'DMSans-Bold': require('./assets/fonts/DM_Sans/static/DMSans-Bold.ttf'),
-      'DMSans-Light': require('./assets/fonts/DM_Sans/static/DMSans-Light.ttf'),
-    }).then(() => setFontsLoaded(true));
+    async function loadFonts() {
+      await ExpoSplashScreen.preventAutoHideAsync();
+      await Font.loadAsync({
+        'SpaceGrotesk-Regular': require('./assets/fonts/Space_Grotesk/static/SpaceGrotesk-Regular.ttf'),
+        'SpaceGrotesk-Medium': require('./assets/fonts/Space_Grotesk/static/SpaceGrotesk-Medium.ttf'),
+        'SpaceGrotesk-SemiBold': require('./assets/fonts/Space_Grotesk/static/SpaceGrotesk-SemiBold.ttf'),
+        'SpaceGrotesk-Bold': require('./assets/fonts/Space_Grotesk/static/SpaceGrotesk-Bold.ttf'),
+        'SpaceGrotesk-Light': require('./assets/fonts/Space_Grotesk/static/SpaceGrotesk-Light.ttf'),
+        'DMSans-Regular': require('./assets/fonts/DM_Sans/static/DMSans-Regular.ttf'),
+        'DMSans-Medium': require('./assets/fonts/DM_Sans/static/DMSans-Medium.ttf'),
+        'DMSans-SemiBold': require('./assets/fonts/DM_Sans/static/DMSans-SemiBold.ttf'),
+        'DMSans-Bold': require('./assets/fonts/DM_Sans/static/DMSans-Bold.ttf'),
+        'DMSans-Light': require('./assets/fonts/DM_Sans/static/DMSans-Light.ttf'),
+      });
+      setFontsLoaded(true);
+      await ExpoSplashScreen.hideAsync();
+    }
+    loadFonts();
   }, []);
 
   if (!fontsLoaded) {
-    return <AppLoading />;
+    return null;
   }
 
   // Show signup screen if user is not signed in

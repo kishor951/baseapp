@@ -7,11 +7,19 @@ import Markdown from 'react-native-markdown-display';
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 
-export default function JarvinScreen({ tasks, setTasks, routines, setRoutines, notes, setNotes }) {
+export default function JarvinScreen({
+  tasks, setTasks,
+  routines, setRoutines,
+  notes, setNotes,
+  chatSessions, setChatSessions,
+  currentChatId, setCurrentChatId
+}) {
   const [pendingRoutine, setPendingRoutine] = useState(null);
   const [input, setInput] = useState('');
   const [isListening, setIsListening] = useState(false);
   const [mode, setMode] = useState('ask'); // 'task', 'routine', 'ask'
+  // Chat session management now handled in App.js
+  // Props: chatSessions, setChatSessions, currentChatId, setCurrentChatId
   // Speech-to-text handlers
   React.useEffect(() => {
     Voice.onSpeechResults = (event) => {
@@ -65,30 +73,21 @@ export default function JarvinScreen({ tasks, setTasks, routines, setRoutines, n
       setIsListening(false);
     }
   };
-  // Store messages as { role: 'USER'|'ASSISTANT', text: string }
-  const [messages, setMessages] = useState(() => {
-    try {
-      const saved = localStorage.getItem('jarvin_chats');
-      if (saved) return JSON.parse(saved);
-    } catch {}
-    return [{
-      role: 'SYSTEM',
-      text:
-        `You are Jarvin, a concise, helpful productivity assistant. 
-If the user asks to create tasks (single or multiple), always return a JSON array of objects, each with: title, due_at (ISO 8601, optional), recurrence_rule (RRULE, optional), priority (low|medium|high, optional). 
-If the user asks for a routine, return a JSON object with: name, steps[], timeblocks[]. 
-Never output markdown unless requested. Never output plain text for task creation. 
-If the user message contains multiple tasks (comma, list, or any format), extract all task titles and return as an array. 
-Example: "create tasks: Buy milk, Walk dog, Call mom" → [{"title": "Buy milk"}, {"title": "Walk dog"}, {"title": "Call mom"}].`
-    }];
-  });
+  // Helper to get/set messages for current chat
+  const currentChat = chatSessions.find(c => c.id === currentChatId);
+  const messages = currentChat ? currentChat.messages : [];
+  const setMessages = (fn) => {
+    setChatSessions(sessions =>
+      sessions.map(chat =>
+        chat.id === currentChatId
+          ? { ...chat, messages: typeof fn === 'function' ? fn(chat.messages) : fn }
+          : chat
+      )
+    );
+  };
 
   // Save chats to localStorage on change
-  React.useEffect(() => {
-    try {
-      localStorage.setItem('jarvin_chats', JSON.stringify(messages));
-    } catch {}
-  }, [messages]);
+  // Removed localStorage saving effect
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   React.useEffect(() => {
@@ -243,100 +242,102 @@ Example: "create tasks: Buy milk, Walk dog, Call mom" → [{"title": "Buy milk"}
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 80}
-      >
-        <View style={{ padding: 20, paddingTop: 20, borderBottomWidth: 1, borderBottomColor: '#eee' }}>
-          <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#222' }}>Jarvin</Text>
-          <Text style={{ fontSize: 16, color: '#666', marginTop: 4 }}>Ask anything, get instant answers powered by Gemini!</Text>
-        </View>
-        <ScrollView style={{ flex: 1, padding: 20 }} contentContainerStyle={{ paddingBottom: 80 }}>
-          {messages
-            .filter(msg => msg.role !== 'SYSTEM')
-            .map((msg, idx) => (
-              <View key={idx} style={{ marginBottom: 18, alignSelf: msg.role === 'USER' ? 'flex-end' : 'flex-start', maxWidth: '80%' }}>
-                <View style={{ backgroundColor: msg.role === 'USER' ? '#e0e0e0' : '#d1eaff', borderRadius: 12, padding: 14 }}>
-                  {msg.role === 'ASSISTANT' ? (
-                    <Markdown style={{ body: { fontSize: 16, color: '#222' } }}>{msg.text}</Markdown>
-                  ) : (
-                    <Text style={{ fontSize: 16, color: '#222' }}>{msg.text}</Text>
-                  )}
-                </View>
-                {/* Chat actions for assistant messages */}
-                {msg.role === 'ASSISTANT' && (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
-                    <TouchableOpacity
-                      onPress={() => Clipboard.setStringAsync(msg.text)}
-                      style={{ flexDirection: 'row', alignItems: 'center', marginRight: 12 }}
-                    >
-                      <Ionicons name="copy" size={18} color="#666" />
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      onPress={() => {
-                        if (setNotes) {
-                          setNotes(prev => [...prev, { id: Date.now(), text: msg.text, createdAt: Date.now(), from: 'Jarvin' }]);
-                        }
-                      }}
-                      style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#e0e0e0', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 2 }}
-                    >
-                      <Ionicons name="library" size={16} color="#007AFF" style={{ marginRight: 4 }} />
-                      <Text style={{ fontSize: 12, color: '#007AFF', fontWeight: '500' }}>Save to Library</Text>
-                    </TouchableOpacity>
+      {/* Main Chat Area */}
+      <View style={{ flex: 1 }}>
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 80}
+        >
+          <View style={{ padding: 20, paddingTop: 20, borderBottomWidth: 1, borderBottomColor: '#eee', flexDirection: 'row', alignItems: 'center' }}>
+            <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#222' }}>Jarvin</Text>
+          </View>
+          <ScrollView style={{ flex: 1, padding: 20 }} contentContainerStyle={{ paddingBottom: 80 }}>
+            {messages
+              .filter(msg => msg.role !== 'SYSTEM')
+              .map((msg, idx) => (
+                <View key={idx} style={{ marginBottom: 18, alignSelf: msg.role === 'USER' ? 'flex-end' : 'flex-start', maxWidth: '80%' }}>
+                  <View style={{ backgroundColor: msg.role === 'USER' ? '#e0e0e0' : '#d1eaff', borderRadius: 12, padding: 14 }}>
+                    {msg.role === 'ASSISTANT' ? (
+                      <Markdown style={{ body: { fontSize: 16, color: '#222' } }}>{msg.text}</Markdown>
+                    ) : (
+                      <Text style={{ fontSize: 16, color: '#222' }}>{msg.text}</Text>
+                    )}
                   </View>
-                )}
-                <Text style={{ fontSize: 12, color: '#888', marginTop: 2, textAlign: msg.role === 'USER' ? 'right' : 'left' }}>{msg.role === 'USER' ? 'You' : 'Jarvin'}</Text>
-              </View>
+                  {/* Chat actions for assistant messages */}
+                  {msg.role === 'ASSISTANT' && (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
+                      <TouchableOpacity
+                        onPress={() => Clipboard.setStringAsync(msg.text)}
+                        style={{ flexDirection: 'row', alignItems: 'center', marginRight: 12 }}
+                      >
+                        <Ionicons name="copy" size={18} color="#666" />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => {
+                          if (setNotes) {
+                            setNotes(prev => [...prev, { id: Date.now(), text: msg.text, createdAt: Date.now(), from: 'Jarvin' }]);
+                          }
+                        }}
+                        style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#e0e0e0', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 2 }}
+                      >
+                        <Ionicons name="library" size={16} color="#007AFF" style={{ marginRight: 4 }} />
+                        <Text style={{ fontSize: 12, color: '#007AFF', fontWeight: '500' }}>Save to Library</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                  <Text style={{ fontSize: 12, color: '#888', marginTop: 2, textAlign: msg.role === 'USER' ? 'right' : 'left' }}>{msg.role === 'USER' ? 'You' : 'Jarvin'}</Text>
+                </View>
+              ))}
+            {loading && <ActivityIndicator size="small" color="#007AFF" style={{ marginTop: 10 }} />}
+          </ScrollView>
+          {/* Mode Selector - centered above input, inserts text into input on press */}
+          <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginBottom: 8 }}>
+            {['Add Tasks', 'Add Routines', 'Ask Anything'].map(option => (
+              <TouchableOpacity
+                key={option}
+                onPress={() => {
+                  setInput(prev => {
+                    // Only insert if not already present at start
+                    if (prev.startsWith(option + ': ')) return prev;
+                    return option + ': ' + prev;
+                  });
+                }}
+                style={{
+                  paddingHorizontal: 16,
+                  paddingVertical: 8,
+                  borderBottomWidth: input.startsWith(option + ': ') ? 2 : 0,
+                  borderBottomColor: input.startsWith(option + ': ') ? '#007AFF' : 'transparent',
+                  marginHorizontal: 4,
+                }}
+              >
+                <Text style={{ fontSize: 16, fontWeight: input.startsWith(option + ': ') ? 'bold' : 'normal', color: '#222' }}>
+                  {option}
+                </Text>
+              </TouchableOpacity>
             ))}
-          {loading && <ActivityIndicator size="small" color="#007AFF" style={{ marginTop: 10 }} />}
-        </ScrollView>
-        {/* Mode Selector - centered above input, inserts text into input on press */}
-        <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginBottom: 8 }}>
-          {['Add Tasks', 'Add Routines', 'Ask Anything'].map(option => (
+          </View>
+          <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#fff', padding: 16, borderTopWidth: 1, borderTopColor: '#eee', flexDirection: 'row', alignItems: 'center' }}>
+            <TextInput
+              style={{ flex: 1, height: 44, borderRadius: 10, borderWidth: 1, borderColor: '#ddd', paddingHorizontal: 14, fontSize: 16, backgroundColor: '#fafafa' }}
+              placeholder="Ask Jarvin anything..."
+              value={input}
+              onChangeText={setInput}
+              editable={!loading}
+              onSubmitEditing={sendMessage}
+            />
             <TouchableOpacity
-              key={option}
-              onPress={() => {
-                setInput(prev => {
-                  // Only insert if not already present at start
-                  if (prev.startsWith(option + ': ')) return prev;
-                  return option + ': ' + prev;
-                });
-              }}
-              style={{
-                paddingHorizontal: 16,
-                paddingVertical: 8,
-                borderBottomWidth: input.startsWith(option + ': ') ? 2 : 0,
-                borderBottomColor: input.startsWith(option + ': ') ? '#007AFF' : 'transparent',
-                marginHorizontal: 4,
-              }}
+              onPress={isListening ? stopListening : startListening}
+              style={{ marginLeft: 10 }}
             >
-              <Text style={{ fontSize: 16, fontWeight: input.startsWith(option + ': ') ? 'bold' : 'normal', color: '#222' }}>
-                {option}
-              </Text>
+              <Ionicons name={isListening ? 'mic' : 'mic-outline'} size={28} color={isListening ? '#007AFF' : '#666'} />
             </TouchableOpacity>
-          ))}
-        </View>
-        <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#fff', padding: 16, borderTopWidth: 1, borderTopColor: '#eee', flexDirection: 'row', alignItems: 'center' }}>
-          <TextInput
-            style={{ flex: 1, height: 44, borderRadius: 10, borderWidth: 1, borderColor: '#ddd', paddingHorizontal: 14, fontSize: 16, backgroundColor: '#fafafa' }}
-            placeholder="Ask Jarvin anything..."
-            value={input}
-            onChangeText={setInput}
-            editable={!loading}
-            onSubmitEditing={sendMessage}
-          />
-          <TouchableOpacity
-            onPress={isListening ? stopListening : startListening}
-            style={{ marginLeft: 10 }}
-          >
-            <Ionicons name={isListening ? 'mic' : 'mic-outline'} size={28} color={isListening ? '#007AFF' : '#666'} />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={sendMessage} disabled={loading || !input.trim()} style={{ marginLeft: 10 }}>
-            <Ionicons name="send" size={28} color={loading || !input.trim() ? '#ccc' : '#007AFF'} />
-          </TouchableOpacity>
-        </View>
-      </KeyboardAvoidingView>
+            <TouchableOpacity onPress={sendMessage} disabled={loading || !input.trim()} style={{ marginLeft: 10 }}>
+              <Ionicons name="send" size={28} color={loading || !input.trim() ? '#ccc' : '#007AFF'} />
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </View>
     </SafeAreaView>
   );
 }

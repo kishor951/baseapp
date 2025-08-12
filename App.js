@@ -18,6 +18,21 @@ import SignupScreen from './src/screens/SignupScreen';
 import NotesScreen from './src/screens/NotesScreen';
 
 export default function App() {
+  // Jarvin chat sessions and selection
+  const [chatSessions, setChatSessions] = useState([
+    {
+      id: Date.now(),
+      title: 'New Chat',
+      messages: [
+        {
+          role: 'SYSTEM',
+          text:
+            `You are Jarvin, a concise, helpful productivity assistant. \nIf the user asks to create tasks (single or multiple), always return a JSON array of objects, each with: title, due_at (ISO 8601, optional), recurrence_rule (RRULE, optional), priority (low|medium|high, optional). \nIf the user asks for a routine, return a JSON object with: name, steps[], timeblocks[]. \nNever output markdown unless requested. Never output plain text for task creation. \nIf the user message contains multiple tasks (comma, list, or any format), extract all task titles and return as an array. \nExample: "create tasks: Buy milk, Walk dog, Call mom" → [{"title": "Buy milk"}, {"title": "Walk dog"}, {"title": "Call mom"}].`
+        }
+      ]
+    }
+  ]);
+  const [currentChatId, setCurrentChatId] = useState(chatSessions[0].id);
   const [showSplash, setShowSplash] = useState(true);
   const [fontsLoaded, setFontsLoaded] = useState(false);
   const [currentScreen, setCurrentScreen] = useState('Jarvin');
@@ -77,29 +92,39 @@ export default function App() {
     setShowTaskDropdown(false);
   };
 
+  const [fontError, setFontError] = useState(null);
   React.useEffect(() => {
     async function loadFonts() {
-      await ExpoSplashScreen.preventAutoHideAsync();
-      await Font.loadAsync({
-        'SpaceGrotesk-Regular': require('./assets/fonts/Space_Grotesk/static/SpaceGrotesk-Regular.ttf'),
-        'SpaceGrotesk-Medium': require('./assets/fonts/Space_Grotesk/static/SpaceGrotesk-Medium.ttf'),
-        'SpaceGrotesk-SemiBold': require('./assets/fonts/Space_Grotesk/static/SpaceGrotesk-SemiBold.ttf'),
-        'SpaceGrotesk-Bold': require('./assets/fonts/Space_Grotesk/static/SpaceGrotesk-Bold.ttf'),
-        'SpaceGrotesk-Light': require('./assets/fonts/Space_Grotesk/static/SpaceGrotesk-Light.ttf'),
-        'DMSans-Regular': require('./assets/fonts/DM_Sans/static/DMSans-Regular.ttf'),
-        'DMSans-Medium': require('./assets/fonts/DM_Sans/static/DMSans-Medium.ttf'),
-        'DMSans-SemiBold': require('./assets/fonts/DM_Sans/static/DMSans-SemiBold.ttf'),
-        'DMSans-Bold': require('./assets/fonts/DM_Sans/static/DMSans-Bold.ttf'),
-        'DMSans-Light': require('./assets/fonts/DM_Sans/static/DMSans-Light.ttf'),
-      });
-      setFontsLoaded(true);
-      await ExpoSplashScreen.hideAsync();
+      try {
+        await Font.loadAsync({
+          'SpaceGrotesk-Regular': require('./assets/fonts/Space_Grotesk/static/SpaceGrotesk-Regular.ttf'),
+          'SpaceGrotesk-Medium': require('./assets/fonts/Space_Grotesk/static/SpaceGrotesk-Medium.ttf'),
+          'SpaceGrotesk-SemiBold': require('./assets/fonts/Space_Grotesk/static/SpaceGrotesk-SemiBold.ttf'),
+          'SpaceGrotesk-Bold': require('./assets/fonts/Space_Grotesk/static/SpaceGrotesk-Bold.ttf'),
+          'SpaceGrotesk-Light': require('./assets/fonts/Space_Grotesk/static/SpaceGrotesk-Light.ttf'),
+          'DMSans-Regular': require('./assets/fonts/DM_Sans/static/DMSans-Regular.ttf'),
+          'DMSans-Medium': require('./assets/fonts/DM_Sans/static/DMSans-Medium.ttf'),
+          'DMSans-SemiBold': require('./assets/fonts/DM_Sans/static/DMSans-SemiBold.ttf'),
+          'DMSans-Bold': require('./assets/fonts/DM_Sans/static/DMSans-Bold.ttf'),
+          'DMSans-Light': require('./assets/fonts/DM_Sans/static/DMSans-Light.ttf'),
+        });
+        setFontsLoaded(true);
+      } catch (err) {
+        setFontError(err.message || 'Font loading failed');
+        console.error('Font loading error:', err);
+        setFontsLoaded(false);
+      }
     }
     loadFonts();
   }, []);
 
   if (!fontsLoaded) {
-    return null;
+    return (
+      <SafeAreaView style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
+        <Text style={{ fontSize: 18, color: '#222', marginBottom: 12 }}>Loading WorkSight...</Text>
+        {fontError && <Text style={{ color: 'red', fontSize: 16 }}>{fontError}</Text>}
+      </SafeAreaView>
+    );
   }
 
   // Show signup screen if user is not signed in
@@ -134,36 +159,55 @@ export default function App() {
           </TouchableOpacity>
         </View>
 
-        {/* Jarvin Chats Modal */}
+        {/* Jarvin Chats Modal - now shows chat sessions */}
         <Modal visible={showJarvinChats} transparent animationType="slide">
-          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.2)', justifyContent: 'center', alignItems: 'center' }}>
-            <View style={{ backgroundColor: '#fff', borderRadius: 20, width: '90%', maxHeight: '80%', padding: 20 }}>
-              <Text style={{ fontSize: 22, fontWeight: 'bold', marginBottom: 18, textAlign: 'center' }}>Jarvin Chats</Text>
-              <View style={{ flex: 1 }}>
-                {notes.filter(n => n.from === 'Jarvin').length === 0 ? (
-                  <Text style={{ color: '#888', textAlign: 'center', marginTop: 40 }}>No Jarvin chats saved yet.</Text>
-                ) : (
-                  <ScrollView style={{ maxHeight: 350 }}>
-                    {notes.filter(n => n.from === 'Jarvin').map((chat, idx) => (
-                      <View key={chat.id || idx} style={{ backgroundColor: '#f5f5f5', borderRadius: 10, padding: 14, marginBottom: 12 }}>
-                        <Text style={{ fontSize: 16, color: '#222' }}>{chat.text}</Text>
-                        <Text style={{ fontSize: 12, color: '#888', marginTop: 4 }}>{new Date(chat.createdAt).toLocaleString()}</Text>
-                      </View>
-                    ))}
-                  </ScrollView>
-                )}
+          <View style={{ flex: 1, flexDirection: 'row', backgroundColor: 'rgba(0,0,0,0.2)' }}>
+            <View style={{ width: 320, backgroundColor: '#f8f8f8', borderRightWidth: 1, borderRightColor: '#eee', height: '100%', paddingTop: 40, position: 'relative' }}>
+              <View style={{ padding: 18, borderBottomWidth: 1, borderBottomColor: '#eee', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#222' }}>Jarvin Chats</Text>
+                <TouchableOpacity onPress={() => setShowJarvinChats(false)}>
+                  <Ionicons name="menu-outline" size={28} color="#666" />
+                </TouchableOpacity>
               </View>
-              {/* Profile name below chats */}
-              <View style={{ alignItems: 'center', marginTop: 18 }}>
+              <TouchableOpacity onPress={() => {
+                // New chat
+                const newId = Date.now();
+                setChatSessions(sessions => [...sessions, {
+                  id: newId,
+                  title: 'New Chat',
+                  messages: [sessions[0].messages[0]] // SYSTEM prompt
+                }]);
+                setCurrentChatId(newId);
+                setShowJarvinChats(false);
+              }} style={{ marginTop: 4, marginBottom: 8, paddingHorizontal: 18 }}>
+                <Text style={{ color: '#007AFF', fontWeight: '600', fontSize: 16 }}>+ New Chat</Text>
+              </TouchableOpacity>
+              <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 80 }}>
+                {chatSessions.map((chat, idx) => (
+                  <TouchableOpacity
+                    key={chat.id}
+                    onPress={() => {
+                      setCurrentChatId(chat.id);
+                      setShowJarvinChats(false);
+                    }}
+                    style={{ padding: 16, borderBottomWidth: 1, borderBottomColor: '#eee', backgroundColor: chat.id === currentChatId ? '#e0e0e0' : '#f8f8f8' }}
+                  >
+                    <Text style={{ fontSize: 16, color: '#222', fontWeight: chat.id === currentChatId ? 'bold' : 'normal' }} numberOfLines={1}>
+                      {chat.title !== 'New Chat' ? chat.title : (chat.messages[1]?.text?.slice(0, 32) || 'New Chat')}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+              {/* Profile info pinned at bottom */}
+              <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: 18, borderTopWidth: 1, borderTopColor: '#eee', backgroundColor: '#f8f8f8' }}>
                 <Text style={{ fontSize: 16, color: '#222', fontWeight: 'bold' }}>{user?.name || user?.email || 'Profile'}</Text>
               </View>
-              <TouchableOpacity style={{ marginTop: 18, alignItems: 'center' }} onPress={() => setShowJarvinChats(false)}>
-                <Text style={{ color: '#007AFF', fontSize: 16, fontWeight: '600' }}>Close</Text>
-              </TouchableOpacity>
             </View>
+            {/* Click outside to close */}
+            <TouchableOpacity style={{ flex: 1 }} onPress={() => setShowJarvinChats(false)} />
           </View>
         </Modal>
-  const [showJarvinChats, setShowJarvinChats] = useState(false);
+
         {currentScreen === 'Timeline' && (
           <TimelineScreen
             routines={routines}
@@ -208,7 +252,18 @@ export default function App() {
         )}
 
         {currentScreen === 'Jarvin' && (
-          <JarvinScreen tasks={tasks} setTasks={setTasks} routines={routines} setRoutines={setRoutines} notes={notes} setNotes={setNotes} />
+          <JarvinScreen
+            tasks={tasks}
+            setTasks={setTasks}
+            routines={routines}
+            setRoutines={setRoutines}
+            notes={notes}
+            setNotes={setNotes}
+            chatSessions={chatSessions}
+            setChatSessions={setChatSessions}
+            currentChatId={currentChatId}
+            setCurrentChatId={setCurrentChatId}
+          />
         )}
 
         {currentScreen === 'Notes' && (

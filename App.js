@@ -1,12 +1,13 @@
 import * as ExpoSplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import React, { useState } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, SafeAreaView, Modal, TextInput, ScrollView } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, Text, View, TouchableOpacity, SafeAreaView, Modal, TextInput, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Animated } from 'react-native';
 import * as Font from 'expo-font';
 
 import { TimeLogProvider } from './src/context/TimeLogContext';
+import { fetchTasks, saveTask, updateTask, toggleTaskCompletion as toggleTaskCompletionAPI, deleteTask as deleteTaskAPI } from './src/utils/databaseApi';
 
 import useTimer from './src/hooks/useTimer';
 import FocusScreen from './src/screens/FocusScreen';
@@ -49,6 +50,49 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [notes, setNotes] = useState([]);
   const [showJarvinChats, setShowJarvinChats] = useState(false);
+  const [tasksLoading, setTasksLoading] = useState(false);
+  const [taskSaving, setTaskSaving] = useState(false);
+
+  // Helper function to get user ID from various user object structures
+  const getUserId = () => {
+    if (user?.supabaseUser?.id) return user.supabaseUser.id;
+    if (user?.id) return user.id;
+    if (user?.user?.id) return user.user.id;
+    return null;
+  };
+
+  // Load tasks from database when user logs in
+  useEffect(() => {
+    if (user && !user.skipped) {
+      loadTasks();
+    }
+  }, [user]);
+
+  const loadTasks = async () => {
+    const userId = getUserId();
+    console.log('Loading tasks for user ID:', userId);
+    if (!userId) {
+      console.log('No user ID found, skipping task load');
+      return;
+    }
+    
+    try {
+      setTasksLoading(true);
+      const { data, error } = await fetchTasks(userId);
+      if (error) {
+        console.error('Error loading tasks:', error);
+        Alert.alert('Error', 'Failed to load tasks');
+      } else {
+        console.log('Loaded tasks:', data);
+        setTasks(data || []);
+      }
+    } catch (err) {
+      console.error('Error loading tasks:', err);
+      Alert.alert('Error', 'Failed to load tasks');
+    } finally {
+      setTasksLoading(false);
+    }
+  };
 
   // Timer hook
   const {
@@ -65,29 +109,144 @@ export default function App() {
   } = useTimer(60 * 60);
 
   // Task management functions
-  const addTask = () => {
-    if (newTaskTitle.trim()) {
-      const newTask = {
-        id: tasks.length + 1,
+  const addTask = async () => {
+    if (!newTaskTitle.trim()) return;
+    
+    const userId = getUserId();
+    if (!userId) {
+      Alert.alert('Error', 'User not authenticated');
+      return;
+    }
+
+    try {
+      setTaskSaving(true);
+      const taskData = {
         title: newTaskTitle.trim(),
-        completed: false
+        completed: false,
+        priority: 'medium'
       };
-      setTasks(prev => {
-        const updated = [...prev, newTask];
-        setCurrentTask(newTask); // Set the new task as current
-        return updated;
-      });
+
+      const { data, error } = await saveTask(userId, taskData);
+      if (error) {
+        console.error('Error saving task:', error);
+        Alert.alert('Error', 'Failed to create task');
+        return;
+      }
+
+      // Add to local state
+      setTasks(prev => [...prev, data]);
+      setCurrentTask(data); // Set the new task as current
       setNewTaskTitle('');
       setShowTaskModal(false);
+    } catch (err) {
+      console.error('Error creating task:', err);
+      Alert.alert('Error', 'Failed to create task');
+    } finally {
+      setTaskSaving(false);
     }
   };
-  const toggleTaskCompletion = (taskId) => {
-    setTasks(tasks.map(task =>
-      task.id === taskId ? { ...task, completed: !task.completed } : task
-    ));
+
+  const toggleTaskCompletion = async (taskId) => {
+    console.log('toggleTaskCompletion called with taskId:', taskId);
+    const userId = getUserId();
+    if (!userId) {
+      Alert.alert('Error', 'User not authenticated');
+      return;
+    }
+
+    try {
+      // Find the task to get its current completed status
+      const task = tasks.find(t => t.id === taskId);
+      if (!task) {
+        console.log('Task not found with ID:', taskId);
+        console.log('Available tasks:', tasks.map(t => ({ id: t.id, title: t.title, completed: t.completed })));
+        return;
+      }
+
+      const newCompletedStatus = !task.completed;
+      console.log(`Toggling task "${task.title}" (ID: ${taskId}) from ${task.completed} to ${newCompletedStatus}`);
+      
+      const { data, error } = await toggleTaskCompletionAPI(taskId, newCompletedStatus);
+      if (error) {
+        console.error('Error toggling task completion:', error);
+        Alert.alert('Error', 'Failed to update task');
+        return;
+      }
+
+      console.log('Database update successful:', data);
+
+      // Update local state
+      setTasks(prevTasks => {
+        const updatedTasks = prevTasks.map(task =>
+          task.id === taskId ? { ...task, completed: newCompletedStatus, completed_at: data.completed_at } : task
+        );
+        console.log('Updated task in local state:', updatedTasks.find(t => t.id === taskId));
+        return updatedTasks;
+      });
+      
+      console.log('Local state update completed');
+    } catch (err) {
+      console.error('Error toggling task:', err);
+      Alert.alert('Error', 'Failed to update task');
+    }
   };
-  const deleteTask = (taskId) => {
-    setTasks(tasks.filter(task => task.id !== taskId));
+
+  const deleteTask = async (taskId) => {
+    const userId = getUserId();
+    if (!userId) {
+      Alert.alert('Error', 'User not authenticated');
+      return;
+    }
+
+    try {
+      const { error } = await deleteTaskAPI(taskId);
+      if (error) {
+        console.error('Error deleting task:', error);
+        Alert.alert('Error', 'Failed to delete task');
+        return;
+      }
+
+      // Update local state
+      setTasks(tasks.filter(task => task.id !== taskId));
+      
+      // Clear current task if it was deleted
+      if (currentTask?.id === taskId) {
+        setCurrentTask(null);
+      }
+    } catch (err) {
+      console.error('Error deleting task:', err);
+      Alert.alert('Error', 'Failed to delete task');
+    }
+  };
+
+  const editTaskTitle = async (taskId, newTitle) => {
+    const userId = getUserId();
+    if (!userId) {
+      Alert.alert('Error', 'User not authenticated');
+      return;
+    }
+
+    if (!newTitle.trim()) return;
+
+    try {
+      const { data, error } = await updateTask(taskId, { title: newTitle.trim() });
+      if (error) {
+        console.error('Error updating task:', error);
+        Alert.alert('Error', 'Failed to update task');
+        return;
+      }
+
+      // Update local state
+      setTasks(tasks => tasks.map(task => task.id === taskId ? { ...task, title: newTitle.trim() } : task));
+      
+      // Update current task if it was edited
+      if (currentTask?.id === taskId) {
+        setCurrentTask(prev => ({ ...prev, title: newTitle.trim() }));
+      }
+    } catch (err) {
+      console.error('Error updating task:', err);
+      Alert.alert('Error', 'Failed to update task');
+    }
   };
   const selectTask = (task) => {
     setCurrentTask(task);
@@ -233,9 +392,54 @@ export default function App() {
               </ScrollView>
               {/* Profile info pinned at bottom */}
               <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: 18, borderTopWidth: 1, borderTopColor: '#eee', backgroundColor: '#f8f8f8' }}>
-                <Text style={{ fontSize: 16, color: '#222', fontWeight: 'bold' }}>
+                <Text style={{ fontSize: 16, color: '#222', fontWeight: 'bold', marginBottom: 12 }}>
                   {user?.name || user?.supabaseUser?.email || user?.email || 'Profile'}
                 </Text>
+                <TouchableOpacity 
+                  onPress={() => {
+                    Alert.alert(
+                      'Logout',
+                      'Are you sure you want to logout?',
+                      [
+                        { text: 'Cancel', style: 'cancel' },
+                        { 
+                          text: 'Logout', 
+                          style: 'destructive',
+                          onPress: () => {
+                            setUser(null);
+                            setTasks([]);
+                            setNotes([]);
+                            setCurrentTask(null);
+                            setShowJarvinChats(false);
+                            // Reset chat sessions to default
+                            setChatSessions([{
+                              id: Date.now(),
+                              title: 'New Chat',
+                              messages: [
+                                {
+                                  role: 'SYSTEM',
+                                  text: `You are Jarvin, a concise, helpful productivity assistant. \nIf the user asks to create tasks (single or multiple), always return a JSON array of objects, each with: title, due_at (ISO 8601, optional), recurrence_rule (RRULE, optional), priority (low|medium|high, optional). \nIf the user asks for a routine, return a JSON object with: name, steps[], timeblocks[]. \nNever output markdown unless requested. Never output plain text for task creation. \nIf the user message contains multiple tasks (comma, list, or any format), extract all task titles and return as an array. \nExample: "create tasks: Buy milk, Walk dog, Call mom" → [{"title": "Buy milk"}, {"title": "Walk dog"}, {"title": "Call mom"}].`
+                                }
+                              ]
+                            }]);
+                            setCurrentChatId(Date.now());
+                          }
+                        }
+                      ]
+                    );
+                  }}
+                  style={{ 
+                    backgroundColor: '#ff4444', 
+                    borderRadius: 8, 
+                    paddingVertical: 10, 
+                    paddingHorizontal: 16, 
+                    alignItems: 'center' 
+                  }}
+                >
+                  <Text style={{ color: '#fff', fontSize: 14, fontWeight: '600' }}>
+                    Logout
+                  </Text>
+                </TouchableOpacity>
               </View>
             </View>
             {/* Click outside to close */}
@@ -277,9 +481,7 @@ export default function App() {
             toggleTaskCompletion={toggleTaskCompletion}
             deleteTask={deleteTask}
             setShowTaskModal={setShowTaskModal}
-            editTask={(id, newTitle) => {
-              setTasks(tasks => tasks.map(task => task.id === id ? { ...task, title: newTitle } : task));
-            }}
+            editTask={editTaskTitle}
             user={user}
           />
         )}
@@ -316,8 +518,16 @@ export default function App() {
                 <TouchableOpacity style={styles.modalButton} onPress={() => setShowTaskModal(false)}>
                   <Text style={styles.modalButtonText}>Cancel</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={[styles.modalButton, styles.modalButtonPrimary]} onPress={addTask}>
-                  <Text style={styles.modalButtonTextPrimary}>Create</Text>
+                <TouchableOpacity 
+                  style={[styles.modalButton, styles.modalButtonPrimary, taskSaving && styles.modalButtonDisabled]} 
+                  onPress={addTask}
+                  disabled={taskSaving}
+                >
+                  {taskSaving ? (
+                    <ActivityIndicator color="white" size="small" />
+                  ) : (
+                    <Text style={styles.modalButtonTextPrimary}>Create</Text>
+                  )}
                 </TouchableOpacity>
               </View>
             </View>
@@ -656,6 +866,9 @@ const styles = StyleSheet.create({
   },
   modalButtonPrimary: {
     backgroundColor: '#000',
+  },
+  modalButtonDisabled: {
+    backgroundColor: '#cccccc',
   },
   modalButtonText: {
     fontSize: 16,

@@ -41,7 +41,6 @@ export default function App() {
   const [currentScreen, setCurrentScreen] = useState('Jarvin');
   const [timeLogs, setTimeLogs] = useState([]);
   const [idleStart, setIdleStart] = useState(null);
-  const [routines, setRoutines] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [currentTask, setCurrentTask] = useState(null);
   const [showTaskModal, setShowTaskModal] = useState(false);
@@ -234,19 +233,18 @@ export default function App() {
               </ScrollView>
               {/* Profile info pinned at bottom */}
               <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: 18, borderTopWidth: 1, borderTopColor: '#eee', backgroundColor: '#f8f8f8' }}>
-                <Text style={{ fontSize: 16, color: '#222', fontWeight: 'bold' }}>{user?.name || user?.email || 'Profile'}</Text>
+                <Text style={{ fontSize: 16, color: '#222', fontWeight: 'bold' }}>
+                  {user?.name || user?.supabaseUser?.email || user?.email || 'Profile'}
+                </Text>
               </View>
             </View>
             {/* Click outside to close */}
             <TouchableOpacity style={{ flex: 1 }} onPress={() => setShowJarvinChats(false)} />
           </Animated.View>
         </Modal>
-  // Search bar state for Jarvin Chats
-  const [chatSearchText, setChatSearchText] = useState('');
 
         {currentScreen === 'Timeline' && (
           <TimelineScreen
-            routines={routines}
             idleStart={idleStart}
           />
         )}
@@ -282,8 +280,7 @@ export default function App() {
             editTask={(id, newTitle) => {
               setTasks(tasks => tasks.map(task => task.id === id ? { ...task, title: newTitle } : task));
             }}
-            routines={routines}
-            setRoutines={setRoutines}
+            user={user}
           />
         )}
 
@@ -291,8 +288,6 @@ export default function App() {
           <JarvinScreen
             tasks={tasks}
             setTasks={setTasks}
-            routines={routines}
-            setRoutines={setRoutines}
             notes={notes}
             setNotes={setNotes}
             chatSessions={chatSessions}

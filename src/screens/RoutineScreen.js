@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, Modal, TextInput, StyleSheet, FlatList, Platform } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, Modal, TextInput, StyleSheet, FlatList, Platform, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import TaskList from '../components/TaskList';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { fetchRoutines, saveRoutine, updateRoutine, deleteRoutine as deleteRoutineAPI } from '../utils/databaseApi';
 
 const initialRoutines = [
   { id: 1, name: 'Yoga time', time: '12:30 AM', duration: 60 },
@@ -14,9 +15,11 @@ export default function RoutineScreen({
   deleteTask = () => {},
   setShowTaskModal = () => {},
   editTask = () => {},
-  routines = [],
-  setRoutines = () => {},
+  user = null, // Add user prop for database operations
 }) {
+  const [routines, setRoutines] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [editRoutine, setEditRoutine] = useState(null);
   const [routineName, setRoutineName] = useState('');
@@ -29,6 +32,56 @@ export default function RoutineScreen({
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [durationMode, setDurationMode] = useState('preset');
   const [customDuration, setCustomDuration] = useState('');
+
+  // Load routines from database when component mounts
+  useEffect(() => {
+    console.log('RoutineScreen - User object:', user);
+    loadRoutines();
+  }, [user]);
+
+  // Helper function to get user ID from various user object structures
+  const getUserId = () => {
+    if (user?.supabaseUser?.id) return user.supabaseUser.id;
+    if (user?.id) return user.id;
+    if (user?.user?.id) return user.user.id;
+    return null;
+  };
+
+  const loadRoutines = async () => {
+    const userId = getUserId();
+    console.log('Loading routines for user ID:', userId);
+    if (!userId) {
+      console.log('No user ID found, skipping routine load');
+      setLoading(false);
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      const { data, error } = await fetchRoutines(userId);
+      if (error) {
+        console.error('Error loading routines:', error);
+        Alert.alert('Error', 'Failed to load routines');
+      } else {
+        // Transform database format to match current UI expectations
+        const transformedRoutines = data?.map(routine => ({
+          id: routine.id,
+          name: routine.name,
+          time: routine.schedule_time || '--:-- --',
+          duration: routine.estimated_duration_minutes || 0,
+          description: routine.description,
+          isActive: routine.is_active,
+          scheduleDays: routine.schedule_days || []
+        })) || [];
+        setRoutines(transformedRoutines);
+      }
+    } catch (err) {
+      console.error('Error loading routines:', err);
+      Alert.alert('Error', 'Failed to load routines');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const openEditTaskModal = (task) => {
     setEditTaskObj(task);
@@ -58,20 +111,115 @@ export default function RoutineScreen({
     setShowModal(true);
   };
 
-  const saveRoutine = () => {
-    if (!routineName.trim() || !routineTime || !(durationMode === 'custom' ? customDuration : routineDuration)) return;
-    const durationToSave = durationMode === 'custom' ? customDuration : routineDuration;
-    const formattedTime = formatAMPM(routineTime);
-    if (editRoutine) {
-      setRoutines(routines.map(r => r.id === editRoutine.id ? { ...r, name: routineName, time: formattedTime, duration: parseInt(durationToSave) } : r));
-    } else {
-      setRoutines([...routines, { id: Date.now(), name: routineName, time: formattedTime, duration: parseInt(durationToSave) }]);
+  const saveRoutineToDatabase = async () => {
+    if (!routineName.trim() || !routineTime || !(durationMode === 'custom' ? customDuration : routineDuration)) {
+      Alert.alert('Error', 'Please fill in all fields');
+      return;
     }
-    setShowModal(false);
+    
+    const userId = getUserId();
+    console.log('Saving routine for user ID:', userId);
+    if (!userId) {
+      Alert.alert('Error', 'User not authenticated');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      const durationToSave = durationMode === 'custom' ? customDuration : routineDuration;
+      const formattedTime = formatAMPM(routineTime);
+      
+      // Prepare routine data for database
+      const routineData = {
+        name: routineName.trim(),
+        description: '', // Can be extended later
+        schedule_time: typeof routineTime === 'string' ? routineTime : routineTime.toTimeString().slice(0, 8),
+        estimated_duration_minutes: parseInt(durationToSave),
+        is_active: true,
+        schedule_days: [] // Can be extended later for specific days
+      };
+
+      let result;
+      if (editRoutine) {
+        // Update existing routine
+        result = await updateRoutine(editRoutine.id, routineData);
+      } else {
+        // Create new routine
+        result = await saveRoutine(userId, routineData);
+      }
+
+      const { data, error } = result;
+      if (error) {
+        console.error('Error saving routine:', error);
+        Alert.alert('Error', 'Failed to save routine');
+        return;
+      }
+
+      // Update local state with new/updated routine
+      const transformedRoutine = {
+        id: data.id,
+        name: data.name,
+        time: formattedTime,
+        duration: data.estimated_duration_minutes,
+        description: data.description,
+        isActive: data.is_active,
+        scheduleDays: data.schedule_days || []
+      };
+
+      if (editRoutine) {
+        setRoutines(prev => prev.map(r => r.id === editRoutine.id ? transformedRoutine : r));
+      } else {
+        setRoutines(prev => [...prev, transformedRoutine]);
+      }
+
+      setShowModal(false);
+      // Reset form
+      setRoutineName('');
+      setRoutineTime('');
+      setRoutineDuration('');
+      setCustomDuration('');
+      setDurationMode('preset');
+      
+    } catch (err) {
+      console.error('Error saving routine:', err);
+      Alert.alert('Error', 'Failed to save routine');
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const deleteRoutine = (id) => {
-    setRoutines(routines.filter(r => r.id !== id));
+  const handleDeleteRoutine = async (routineId) => {
+    const userId = getUserId();
+    if (!userId) {
+      Alert.alert('Error', 'User not authenticated');
+      return;
+    }
+
+    Alert.alert(
+      'Delete Routine',
+      'Are you sure you want to delete this routine?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const { error } = await deleteRoutineAPI(routineId);
+              if (error) {
+                console.error('Error deleting routine:', error);
+                Alert.alert('Error', 'Failed to delete routine');
+              } else {
+                setRoutines(prev => prev.filter(r => r.id !== routineId));
+              }
+            } catch (err) {
+              console.error('Error deleting routine:', err);
+              Alert.alert('Error', 'Failed to delete routine');
+            }
+          }
+        }
+      ]
+    );
   };
 
   function formatAMPM(date) {
@@ -141,34 +289,51 @@ export default function RoutineScreen({
         </>
       ) : (
         <>
-          {/* Routines List */}
-          <FlatList
-            data={routines}
-            keyExtractor={item => item.id.toString()}
-            renderItem={({ item }) => (
-              <View style={styles.routineItem}>
-                <View style={styles.routineTimeBox}>
-                  <Text style={styles.routineTimeText}>{item.time}</Text>
-                </View>
-                <View style={{ flex: 1, marginLeft: 12 }}>
-                  <Text style={styles.routineName}>{item.name}</Text>
-                  <Text style={styles.routineDuration}>{item.duration} mins</Text>
-                </View>
-                <TouchableOpacity style={styles.iconButton} onPress={() => openEditModal(item)}>
-                  <Ionicons name="pencil" size={20} color="#666" />
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.iconButton} onPress={() => deleteRoutine(item.id)}>
-                  <Ionicons name="trash" size={20} color="#666" />
-                </TouchableOpacity>
-              </View>
-            )}
-            style={{ marginHorizontal: 20, marginTop: 20 }}
-          />
+          {/* Loading indicator */}
+          {loading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color="#000" />
+              <Text style={styles.loadingText}>Loading routines...</Text>
+            </View>
+          ) : (
+            <>
+              {/* Routines List */}
+              <FlatList
+                data={routines}
+                keyExtractor={item => item.id.toString()}
+                renderItem={({ item }) => (
+                  <View style={styles.routineItem}>
+                    <View style={styles.routineTimeBox}>
+                      <Text style={styles.routineTimeText}>{item.time}</Text>
+                    </View>
+                    <View style={{ flex: 1, marginLeft: 12 }}>
+                      <Text style={styles.routineName}>{item.name}</Text>
+                      <Text style={styles.routineDuration}>{item.duration} mins</Text>
+                    </View>
+                    <TouchableOpacity style={styles.iconButton} onPress={() => openEditModal(item)}>
+                      <Ionicons name="pencil" size={20} color="#666" />
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.iconButton} onPress={() => handleDeleteRoutine(item.id)}>
+                      <Ionicons name="trash" size={20} color="#666" />
+                    </TouchableOpacity>
+                  </View>
+                )}
+                style={{ marginHorizontal: 20, marginTop: 20 }}
+                ListEmptyComponent={
+                  <View style={styles.emptyContainer}>
+                    <Ionicons name="time-outline" size={48} color="#ccc" />
+                    <Text style={styles.emptyText}>No routines yet</Text>
+                    <Text style={styles.emptySubText}>Create your first daily routine</Text>
+                  </View>
+                }
+              />
 
-          {/* Add Routine Button */}
-          <TouchableOpacity style={styles.addButton} onPress={openAddModal}>
-            <Text style={styles.addButtonText}>Add My Daily Routine</Text>
-          </TouchableOpacity>
+              {/* Add Routine Button */}
+              <TouchableOpacity style={styles.addButton} onPress={openAddModal}>
+                <Text style={styles.addButtonText}>Add My Daily Routine</Text>
+              </TouchableOpacity>
+            </>
+          )}
         </>
       )}
 
@@ -231,19 +396,16 @@ export default function RoutineScreen({
               <TouchableOpacity style={styles.modalButton} onPress={() => setShowModal(false)}>
                 <Text style={styles.modalButtonText}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.modalButton, styles.modalButtonPrimary]} onPress={() => {
-                // Use custom duration if selected
-                const durationToSave = durationMode === 'custom' ? customDuration : routineDuration;
-                const formattedTime = formatAMPM(routineTime);
-                if (!routineName.trim() || !routineTime || !durationToSave) return;
-                if (editRoutine) {
-                  setRoutines(routines.map(r => r.id === editRoutine.id ? { ...r, name: routineName, time: formattedTime, duration: parseInt(durationToSave) } : r));
-                } else {
-                  setRoutines([...routines, { id: Date.now(), name: routineName, time: formattedTime, duration: parseInt(durationToSave) }]);
-                }
-                setShowModal(false);
-              }}>
-                <Text style={styles.modalButtonTextPrimary}>Save</Text>
+              <TouchableOpacity 
+                style={[styles.modalButton, styles.modalButtonPrimary, saving && styles.modalButtonDisabled]} 
+                onPress={saveRoutineToDatabase}
+                disabled={saving}
+              >
+                {saving ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.modalButtonTextPrimary}>Save</Text>
+                )}
               </TouchableOpacity>
             </View>
           </View>
@@ -389,5 +551,36 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#fff',
     fontWeight: '600',
+  },
+  modalButtonDisabled: {
+    backgroundColor: '#ccc',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 50,
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: '#666',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 100,
+  },
+  emptyText: {
+    fontSize: 18,
+    color: '#666',
+    marginTop: 16,
+    fontWeight: '500',
+  },
+  emptySubText: {
+    fontSize: 14,
+    color: '#999',
+    marginTop: 4,
   },
 });

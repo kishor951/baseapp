@@ -12,7 +12,11 @@ export default function JarvinScreen({
   routines, setRoutines,
   notes, setNotes,
   chatSessions, setChatSessions,
-  currentChatId, setCurrentChatId
+  currentChatId, setCurrentChatId,
+  createNewChatSession,
+  saveMessageToDatabase,
+  addTaskFromJarvin,
+  user
 }) {
   const [pendingRoutine, setPendingRoutine] = useState(null);
   const [input, setInput] = useState('');
@@ -106,15 +110,33 @@ export default function JarvinScreen({
   async function sendMessage() {
     if (!input.trim()) return;
     setLoading(true);
+    
+    const userMessage = { role: 'USER', text: input };
+    
     // Add user message to history
-    setMessages(prev => [...prev, { role: 'USER', text: input }]);
+    setMessages(prev => [...prev, userMessage]);
+    
+    // Save user message to database
+    if (user && !user.skipped) {
+      await saveMessageToDatabase(currentChatId, 'user', input);
+    }
+    
     try {
       // If user is responding to a pending routine time prompt
       if (pendingRoutine) {
         // Assume input is the time for the routine
         const updatedRoutine = { ...pendingRoutine, time: input };
         setRoutines(prev => [...prev, updatedRoutine]);
-        setMessages(prev => [...prev, { role: 'ASSISTANT', text: `Routine created: ${updatedRoutine.name} at ${input}` }]);
+        
+        const responseText = `Routine created: ${updatedRoutine.name} at ${input}`;
+        const assistantMessage = { role: 'ASSISTANT', text: responseText };
+        setMessages(prev => [...prev, assistantMessage]);
+        
+        // Save assistant message to database
+        if (user && !user.skipped) {
+          await saveMessageToDatabase(currentChatId, 'assistant', responseText);
+        }
+        
         setPendingRoutine(null);
         setInput('');
         setLoading(false);
@@ -186,31 +208,24 @@ export default function JarvinScreen({
             if (isTask) {
               let newTasks = [];
               if (Array.isArray(parsed)) {
-                newTasks = parsed.map(task => ({
-                  ...task,
-                  id: Date.now() + Math.floor(Math.random() * 10000),
-                  completed: false
-                }));
-                setTasks(prev => [...prev, ...newTasks]);
+                // Create tasks in database
+                const createdTasks = await Promise.all(
+                  parsed.map(task => addTaskFromJarvin(task))
+                );
+                newTasks = createdTasks;
                 answer = `Tasks created: ${newTasks.map(t => t.title).join(', ')}`;
               } else if (parsed && typeof parsed === 'object' && parsed.title) {
                 // Single task fallback
-                const newTask = {
-                  ...parsed,
-                  id: Date.now() + Math.floor(Math.random() * 10000),
-                  completed: false
-                };
-                setTasks(prev => [...prev, newTask]);
+                const newTask = await addTaskFromJarvin(parsed);
+                newTasks = [newTask];
                 answer = `Task created: ${newTask.title}`;
               } else {
                 // Fallback: try to extract comma-separated titles from plain text
                 const titles = answer.split(',').map(t => t.trim()).filter(Boolean);
-                newTasks = titles.map(title => ({
-                  title,
-                  id: Date.now() + Math.floor(Math.random() * 10000),
-                  completed: false
-                }));
-                setTasks(prev => [...prev, ...newTasks]);
+                const createdTasks = await Promise.all(
+                  titles.map(title => addTaskFromJarvin({ title }))
+                );
+                newTasks = createdTasks;
                 answer = `Tasks created: ${titles.join(', ')}`;
               }
             } else if (isRoutine) {
@@ -231,10 +246,25 @@ export default function JarvinScreen({
         answer = 'API Error: ' + data.error.message;
         setError(data.error.message);
       }
-      setMessages(prev => [...prev, { role: 'ASSISTANT', text: answer }]);
+      
+      const assistantMessage = { role: 'ASSISTANT', text: answer };
+      setMessages(prev => [...prev, assistantMessage]);
+      
+      // Save assistant message to database
+      if (user && !user.skipped) {
+        await saveMessageToDatabase(currentChatId, 'assistant', answer);
+      }
+      
       if (!data?.error?.message) setError(null);
     } catch (err) {
-      setMessages(prev => [...prev, { role: 'ASSISTANT', text: 'Error: ' + (err?.message || 'Failed to fetch answer') }]);
+      const errorMessage = { role: 'ASSISTANT', text: 'Error: ' + (err?.message || 'Failed to fetch answer') };
+      setMessages(prev => [...prev, errorMessage]);
+      
+      // Save error message to database
+      if (user && !user.skipped) {
+        await saveMessageToDatabase(currentChatId, 'assistant', errorMessage.text);
+      }
+      
       setError('Failed to fetch answer from Gemini API.');
     }
     setInput('');

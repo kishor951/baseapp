@@ -7,7 +7,7 @@ import { Animated } from 'react-native';
 import * as Font from 'expo-font';
 
 import { TimeLogProvider } from './src/context/TimeLogContext';
-import { fetchTasks, saveTask, updateTask, toggleTaskCompletion as toggleTaskCompletionAPI, deleteTask as deleteTaskAPI } from './src/utils/databaseApi';
+import { fetchTasks, saveTask, updateTask, toggleTaskCompletion as toggleTaskCompletionAPI, deleteTask as deleteTaskAPI, fetchChatSessions, saveChatSession, fetchMessages, saveMessage } from './src/utils/databaseApi';
 
 import useTimer from './src/hooks/useTimer';
 import FocusScreen from './src/screens/FocusScreen';
@@ -61,12 +61,71 @@ export default function App() {
     return null;
   };
 
-  // Load tasks from database when user logs in
+  // Load tasks and chat sessions from database when user logs in
   useEffect(() => {
     if (user && !user.skipped) {
       loadTasks();
+      loadChatSessions();
     }
   }, [user]);
+
+  const loadChatSessions = async () => {
+    const userId = getUserId();
+    console.log('Loading chat sessions for user ID:', userId);
+    if (!userId) {
+      console.log('No user ID found, skipping chat sessions load');
+      return;
+    }
+    
+    try {
+      const { data, error } = await fetchChatSessions(userId);
+      if (error) {
+        console.error('Error loading chat sessions:', error);
+        // Don't show alert, just keep default chat
+      } else {
+        console.log('Loaded chat sessions:', data);
+        if (data && data.length > 0) {
+          // Load messages for each chat session
+          const sessionsWithMessages = await Promise.all(
+            data.map(async (session) => {
+              const { data: messages, error: msgError } = await fetchMessages(session.id);
+              if (msgError) {
+                console.error('Error loading messages for session:', session.id, msgError);
+                return {
+                  id: session.id,
+                  title: session.title,
+                  messages: [
+                    {
+                      role: 'SYSTEM',
+                      text: `You are Jarvin, a concise, helpful productivity assistant. \nIf the user asks to create tasks (single or multiple), always return a JSON array of objects, each with: title, due_at (ISO 8601, optional), recurrence_rule (RRULE, optional), priority (low|medium|high, optional). \nIf the user asks for a routine, return a JSON object with: name, steps[], timeblocks[]. \nNever output markdown unless requested. Never output plain text for task creation. \nIf the user message contains multiple tasks (comma, list, or any format), extract all task titles and return as an array. \nExample: "create tasks: Buy milk, Walk dog, Call mom" → [{"title": "Buy milk"}, {"title": "Walk dog"}, {"title": "Call mom"}].`
+                    }
+                  ]
+                };
+              }
+              return {
+                id: session.id,
+                title: session.title,
+                messages: [
+                  {
+                    role: 'SYSTEM',
+                    text: `You are Jarvin, a concise, helpful productivity assistant. \nIf the user asks to create tasks (single or multiple), always return a JSON array of objects, each with: title, due_at (ISO 8601, optional), recurrence_rule (RRULE, optional), priority (low|medium|high, optional). \nIf the user asks for a routine, return a JSON object with: name, steps[], timeblocks[]. \nNever output markdown unless requested. Never output plain text for task creation. \nIf the user message contains multiple tasks (comma, list, or any format), extract all task titles and return as an array. \nExample: "create tasks: Buy milk, Walk dog, Call mom" → [{"title": "Buy milk"}, {"title": "Walk dog"}, {"title": "Call mom"}].`
+                  },
+                  ...messages.map(msg => ({
+                    role: msg.role.toUpperCase(),
+                    text: msg.content
+                  }))
+                ]
+              };
+            })
+          );
+          setChatSessions(sessionsWithMessages);
+          setCurrentChatId(sessionsWithMessages[0].id);
+        }
+      }
+    } catch (err) {
+      console.error('Error loading chat sessions:', err);
+    }
+  };
 
   const loadTasks = async () => {
     const userId = getUserId();
@@ -248,6 +307,138 @@ export default function App() {
       Alert.alert('Error', 'Failed to update task');
     }
   };
+
+  // Chat management functions
+  const createNewChatSession = async (title = 'New Chat') => {
+    const userId = getUserId();
+    if (!userId) {
+      // If no user, create local chat
+      const newId = Date.now();
+      setChatSessions(sessions => [...sessions, {
+        id: newId,
+        title,
+        messages: [sessions[0].messages[0]] // SYSTEM prompt
+      }]);
+      setCurrentChatId(newId);
+      return newId;
+    }
+
+    try {
+      const sessionData = {
+        title,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+
+      const { data, error } = await saveChatSession(userId, sessionData);
+      if (error) {
+        console.error('Error creating chat session:', error);
+        // Fallback to local chat
+        const newId = Date.now();
+        setChatSessions(sessions => [...sessions, {
+          id: newId,
+          title,
+          messages: [sessions[0].messages[0]]
+        }]);
+        setCurrentChatId(newId);
+        return newId;
+      }
+
+      const newSession = {
+        id: data.id,
+        title: data.title,
+        messages: [
+          {
+            role: 'SYSTEM',
+            text: `You are Jarvin, a concise, helpful productivity assistant. \nIf the user asks to create tasks (single or multiple), always return a JSON array of objects, each with: title, due_at (ISO 8601, optional), recurrence_rule (RRULE, optional), priority (low|medium|high, optional). \nIf the user asks for a routine, return a JSON object with: name, steps[], timeblocks[]. \nNever output markdown unless requested. Never output plain text for task creation. \nIf the user message contains multiple tasks (comma, list, or any format), extract all task titles and return as an array. \nExample: "create tasks: Buy milk, Walk dog, Call mom" → [{"title": "Buy milk"}, {"title": "Walk dog"}, {"title": "Call mom"}].`
+          }
+        ]
+      };
+
+      setChatSessions(sessions => [...sessions, newSession]);
+      setCurrentChatId(data.id);
+      return data.id;
+    } catch (err) {
+      console.error('Error creating chat session:', err);
+      // Fallback to local chat
+      const newId = Date.now();
+      setChatSessions(sessions => [...sessions, {
+        id: newId,
+        title,
+        messages: [sessions[0].messages[0]]
+      }]);
+      setCurrentChatId(newId);
+      return newId;
+    }
+  };
+
+  // Function for Jarvin to add tasks directly to database
+  const addTaskFromJarvin = async (taskData) => {
+    const userId = getUserId();
+    if (!userId) {
+      // If no user, just add to local state
+      const newTask = {
+        ...taskData,
+        id: Date.now() + Math.floor(Math.random() * 10000),
+        completed: false
+      };
+      setTasks(prev => [...prev, newTask]);
+      return newTask;
+    }
+
+    try {
+      const { data, error } = await saveTask(userId, {
+        ...taskData,
+        completed: false
+      });
+      if (error) {
+        console.error('Error saving task from Jarvin:', error);
+        // Fallback to local state
+        const newTask = {
+          ...taskData,
+          id: Date.now() + Math.floor(Math.random() * 10000),
+          completed: false
+        };
+        setTasks(prev => [...prev, newTask]);
+        return newTask;
+      }
+
+      // Add to local state
+      setTasks(prev => [...prev, data]);
+      return data;
+    } catch (err) {
+      console.error('Error creating task from Jarvin:', err);
+      // Fallback to local state
+      const newTask = {
+        ...taskData,
+        id: Date.now() + Math.floor(Math.random() * 10000),
+        completed: false
+      };
+      setTasks(prev => [...prev, newTask]);
+      return newTask;
+    }
+  };
+
+  const saveMessageToDatabase = async (chatSessionId, role, content) => {
+    const userId = getUserId();
+    if (!userId) return; // Skip database save if no user
+
+    try {
+      const messageData = {
+        role,
+        content,
+        created_at: new Date().toISOString()
+      };
+
+      const { data, error } = await saveMessage(chatSessionId, messageData);
+      if (error) {
+        console.error('Error saving message:', error);
+      }
+    } catch (err) {
+      console.error('Error saving message:', err);
+    }
+  };
+
   const selectTask = (task) => {
     setCurrentTask(task);
     setShowTaskDropdown(false);
@@ -353,15 +544,9 @@ export default function App() {
                   onChangeText={setChatSearchText}
                 />
               </View>
-              <TouchableOpacity onPress={() => {
+              <TouchableOpacity onPress={async () => {
                 // New chat
-                const newId = Date.now();
-                setChatSessions(sessions => [...sessions, {
-                  id: newId,
-                  title: 'New Chat',
-                  messages: [sessions[0].messages[0]] // SYSTEM prompt
-                }]);
-                setCurrentChatId(newId);
+                const newChatId = await createNewChatSession('New Chat');
                 setShowJarvinChats(false);
               }} style={{ marginTop: 4, marginBottom: 8, paddingHorizontal: 18 }}>
                 <Text style={{ color: '#007AFF', fontWeight: '600', fontSize: 16 }}>+ New Chat</Text>
@@ -412,8 +597,9 @@ export default function App() {
                             setCurrentTask(null);
                             setShowJarvinChats(false);
                             // Reset chat sessions to default
+                            const defaultChatId = Date.now();
                             setChatSessions([{
-                              id: Date.now(),
+                              id: defaultChatId,
                               title: 'New Chat',
                               messages: [
                                 {
@@ -422,7 +608,7 @@ export default function App() {
                                 }
                               ]
                             }]);
-                            setCurrentChatId(Date.now());
+                            setCurrentChatId(defaultChatId);
                           }
                         }
                       ]
@@ -496,6 +682,10 @@ export default function App() {
             setChatSessions={setChatSessions}
             currentChatId={currentChatId}
             setCurrentChatId={setCurrentChatId}
+            createNewChatSession={createNewChatSession}
+            saveMessageToDatabase={saveMessageToDatabase}
+            addTaskFromJarvin={addTaskFromJarvin}
+            user={user}
           />
         )}
 

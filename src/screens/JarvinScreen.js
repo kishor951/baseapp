@@ -16,6 +16,7 @@ export default function JarvinScreen({
   createNewChatSession,
   saveMessageToDatabase,
   addTaskFromJarvin,
+  addNote,
   user
 }) {
   const [pendingRoutine, setPendingRoutine] = useState(null);
@@ -305,9 +306,13 @@ export default function JarvinScreen({
                         <Ionicons name="copy" size={18} color="#666" />
                       </TouchableOpacity>
                       <TouchableOpacity
-                        onPress={() => {
-                          if (setNotes) {
-                            setNotes(prev => [...prev, { id: Date.now(), text: msg.text, createdAt: Date.now(), from: 'Jarvin' }]);
+                        onPress={async () => {
+                          if (addNote && user && !user.skipped) {
+                            // Save to database as library note (is_idea: false)
+                            await addNote({ text: msg.text }, false);
+                          } else if (setNotes) {
+                            // Fallback to local state for guests
+                            setNotes(prev => [...prev, { id: Date.now(), text: msg.text, created_at: new Date().toISOString(), from: 'Jarvin', is_idea: false }]);
                           }
                         }}
                         style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#e0e0e0', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 2 }}

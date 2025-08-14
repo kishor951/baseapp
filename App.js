@@ -7,7 +7,7 @@ import { Animated } from 'react-native';
 import * as Font from 'expo-font';
 
 import { TimeLogProvider } from './src/context/TimeLogContext';
-import { fetchTasks, saveTask, updateTask, toggleTaskCompletion as toggleTaskCompletionAPI, deleteTask as deleteTaskAPI, fetchChatSessions, saveChatSession, fetchMessages, saveMessage } from './src/utils/databaseApi';
+import { fetchTasks, saveTask, updateTask, toggleTaskCompletion as toggleTaskCompletionAPI, deleteTask as deleteTaskAPI, fetchChatSessions, saveChatSession, fetchMessages, saveMessage, fetchNotes, saveNote, updateNote, deleteNote } from './src/utils/databaseApi';
 
 import useTimer from './src/hooks/useTimer';
 import FocusScreen from './src/screens/FocusScreen';
@@ -66,6 +66,7 @@ export default function App() {
     if (user && !user.skipped) {
       loadTasks();
       loadChatSessions();
+      loadNotes();
     }
   }, [user]);
 
@@ -150,6 +151,27 @@ export default function App() {
       Alert.alert('Error', 'Failed to load tasks');
     } finally {
       setTasksLoading(false);
+    }
+  };
+
+  const loadNotes = async () => {
+    const userId = getUserId();
+    console.log('Loading notes for user ID:', userId);
+    if (!userId) {
+      console.log('No user ID found, skipping notes load');
+      return;
+    }
+    
+    try {
+      const { data, error } = await fetchNotes(userId);
+      if (error) {
+        console.error('Error loading notes:', error);
+        return;
+      }
+      console.log('Loaded notes:', data);
+      setNotes(data || []);
+    } catch (err) {
+      console.error('Error loading notes:', err);
     }
   };
 
@@ -305,6 +327,78 @@ export default function App() {
     } catch (err) {
       console.error('Error updating task:', err);
       Alert.alert('Error', 'Failed to update task');
+    }
+  };
+
+  // Note management functions
+  const addNote = async (noteData, isIdea = false) => {
+    const userId = getUserId();
+    if (!userId) {
+      Alert.alert('Error', 'User not authenticated');
+      return;
+    }
+
+    try {
+      const { data, error } = await saveNote(userId, { ...noteData, is_idea: isIdea });
+      if (error) {
+        console.error('Error saving note:', error);
+        Alert.alert('Error', 'Failed to save note');
+        return;
+      }
+
+      // Update local state
+      setNotes(prev => [...prev, data]);
+      return data;
+    } catch (err) {
+      console.error('Error saving note:', err);
+      Alert.alert('Error', 'Failed to save note');
+    }
+  };
+
+  const updateNoteData = async (noteId, updates) => {
+    const userId = getUserId();
+    if (!userId) {
+      Alert.alert('Error', 'User not authenticated');
+      return;
+    }
+
+    try {
+      const { data, error } = await updateNote(noteId, updates);
+      if (error) {
+        console.error('Error updating note:', error);
+        Alert.alert('Error', 'Failed to update note');
+        return;
+      }
+
+      // Update local state
+      setNotes(prev => prev.map(note => note.id === noteId ? { ...note, ...updates } : note));
+      return data;
+    } catch (err) {
+      console.error('Error updating note:', err);
+      Alert.alert('Error', 'Failed to update note');
+    }
+  };
+
+  const deleteNoteData = async (noteId) => {
+    const userId = getUserId();
+    if (!userId) {
+      Alert.alert('Error', 'User not authenticated');
+      return;
+    }
+
+    try {
+      const { error } = await deleteNote(noteId);
+      if (error) {
+        console.error('Error deleting note:', error);
+        Alert.alert('Error', 'Failed to delete note');
+        return;
+      }
+
+      // Update local state
+      setNotes(prev => prev.filter(note => note.id !== noteId));
+    } catch (err) {
+      console.error('Error deleting note:', err);
+      Alert.alert('Error', 'Failed to delete note');
     }
   };
 
@@ -685,12 +779,20 @@ export default function App() {
             createNewChatSession={createNewChatSession}
             saveMessageToDatabase={saveMessageToDatabase}
             addTaskFromJarvin={addTaskFromJarvin}
+            addNote={addNote}
             user={user}
           />
         )}
 
         {currentScreen === 'Notes' && (
-          <NotesScreen notes={notes} setNotes={setNotes} />
+          <NotesScreen 
+            notes={notes} 
+            setNotes={setNotes}
+            user={user}
+            addNote={addNote}
+            updateNote={updateNoteData}
+            deleteNote={deleteNoteData}
+          />
         )}
 
         {/* Task Creation Modal */}

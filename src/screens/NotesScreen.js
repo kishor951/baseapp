@@ -4,15 +4,11 @@ import Voice from 'react-native-voice';
 import { View, Text, TouchableOpacity, TextInput, Modal, FlatList, StyleSheet, SafeAreaView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-const now = Date.now();
-const initialIdeas = [
-  { id: 1, text: 'Fashion Application VR', duration: '60 mins', createdAt: now },
-  { id: 2, text: 'Make a mobile app like Jarvis', duration: '6 hrs', createdAt: now },
-];
-
-export default function NotesScreen({ notes = [], setNotes }) {
+export default function NotesScreen({ notes = [], setNotes, user, addNote, updateNote, deleteNote }) {
   const [tab, setTab] = useState('Idea Pool');
-  const [ideas, setIdeas] = useState(initialIdeas);
+  // Filter notes based on is_idea field
+  const ideas = notes.filter(note => note.is_idea === true);
+  const libraryNotes = notes.filter(note => note.is_idea === false);
   const [showModal, setShowModal] = useState(false);
   const [newIdea, setNewIdea] = useState('');
   // Remove duration
@@ -20,12 +16,15 @@ export default function NotesScreen({ notes = [], setNotes }) {
   const [expandedNoteId, setExpandedNoteId] = useState(null);
   const [searchText, setSearchText] = useState('');
 
-  const handleAddIdea = () => {
+  const handleAddIdea = async () => {
     if (newIdea.trim()) {
+      const isIdea = tab === 'Idea Pool';
       if (editId) {
-        setIdeas(ideas => ideas.map(idea => idea.id === editId ? { ...idea, text: newIdea } : idea));
+        // Update existing note
+        await updateNote(editId, { text: newIdea.trim() });
       } else {
-        setIdeas(ideas => [...ideas, { id: Date.now(), text: newIdea, createdAt: Date.now() }]);
+        // Add new note
+        await addNote({ text: newIdea.trim() }, isIdea);
       }
       setShowModal(false);
       setNewIdea('');
@@ -35,7 +34,7 @@ export default function NotesScreen({ notes = [], setNotes }) {
 
   const handleEdit = (idea) => {
     setEditId(idea.id);
-    setNewIdea(idea.text);
+    setNewIdea(idea.text || '');
     setShowModal(true);
   };
 
@@ -71,8 +70,8 @@ export default function NotesScreen({ notes = [], setNotes }) {
     }
   };
 
-  const handleDelete = (id) => {
-    setIdeas(ideas => ideas.filter(idea => idea.id !== id));
+  const handleDelete = async (id) => {
+    await deleteNote(id);
   };
 
   return (
@@ -113,13 +112,13 @@ export default function NotesScreen({ notes = [], setNotes }) {
             />
           </View>
           <FlatList
-            data={ideas.filter(idea => idea.text.toLowerCase().includes(searchText.toLowerCase()))}
+            data={ideas.filter(idea => (idea.text || '').toLowerCase().includes(searchText.toLowerCase()))}
             keyExtractor={item => (item.id ? item.id.toString() : String(item.text || Math.random()))}
             contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 0, paddingBottom: 80 }}
             renderItem={({ item }) => {
               // ...existing code...
               const now = Date.now();
-              const elapsedMs = now - item.createdAt;
+              const elapsedMs = now - new Date(item.created_at).getTime();
               const minutes = Math.floor(elapsedMs / 60000);
               const hours = Math.floor(minutes / 60);
               let timeInPool = '';
@@ -131,7 +130,7 @@ export default function NotesScreen({ notes = [], setNotes }) {
               return (
                 <View style={styles.ideaItem}>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.ideaText}>{item.text}</Text>
+                    <Text style={styles.ideaText}>{item.text || ''}</Text>
                     <Text style={styles.ideaDuration}>In pool: {timeInPool}</Text>
                   </View>
                   <TouchableOpacity onPress={() => handleEdit(item)} style={styles.editButton}>
@@ -167,14 +166,14 @@ export default function NotesScreen({ notes = [], setNotes }) {
             />
           </View>
           <FlatList
-            data={notes.filter(note => note.text.toLowerCase().includes(searchText.toLowerCase()))}
+            data={libraryNotes.filter(note => (note.text || '').toLowerCase().includes(searchText.toLowerCase()))}
             keyExtractor={item => item.id?.toString()}
             contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 0, paddingBottom: 80 }}
             renderItem={({ item }) => {
               const isExpanded = expandedNoteId === item.id;
-              let displayText = item.text;
-              if (!isExpanded) {
-                const lines = item.text.split(/\r?\n/);
+              let displayText = item.text || '';
+              if (!isExpanded && displayText) {
+                const lines = displayText.split(/\r?\n/);
                 displayText = lines.slice(0, 2).join('\n');
                 if (lines.length > 2) displayText += '...';
               }
@@ -183,9 +182,14 @@ export default function NotesScreen({ notes = [], setNotes }) {
                   <View style={styles.ideaItem}>
                     <View style={{ flex: 1 }}>
                       <Markdown style={{ body: { fontSize: 16, color: '#222' } }}>{displayText}</Markdown>
-                      {item.from && <Text style={{ fontSize: 12, color: '#888' }}>From: {item.from}</Text>}
-                      {item.createdAt && <Text style={{ fontSize: 12, color: '#888' }}>{new Date(item.createdAt).toLocaleString()}</Text>}
+                      {item.created_at && <Text style={{ fontSize: 12, color: '#888' }}>{new Date(item.created_at).toLocaleString()}</Text>}
                     </View>
+                    <TouchableOpacity onPress={() => handleEdit(item)} style={styles.editButton}>
+                      <Ionicons name="pencil" size={22} color="#888" />
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => handleDelete(item.id)} style={styles.deleteButton}>
+                      <Ionicons name="trash" size={22} color="#d00" />
+                    </TouchableOpacity>
                   </View>
                 </TouchableOpacity>
               );
@@ -205,11 +209,11 @@ export default function NotesScreen({ notes = [], setNotes }) {
       <Modal visible={showModal} transparent animationType="slide">
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>{editId ? 'Edit Idea' : 'Add Idea'}</Text>
+            <Text style={styles.modalTitle}>{editId ? (tab === 'Idea Pool' ? 'Edit Idea' : 'Edit Note') : (tab === 'Idea Pool' ? 'Add Idea' : 'Add Note')}</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <TextInput
                 style={[styles.modalInput, { flex: 1, minHeight: 60 }]}
-                placeholder="Idea description"
+                placeholder={tab === 'Idea Pool' ? "Idea description" : "Note content"}
                 value={newIdea}
                 onChangeText={setNewIdea}
                 multiline

@@ -56,7 +56,14 @@ export const fetchNotes = async (userId, isIdea = null) => {
     const { data, error } = await query;
     
     if (error) throw error;
-    return { data, error: null };
+    
+    // Map 'content' to 'text' for frontend compatibility
+    const mappedData = data?.map(note => ({
+      ...note,
+      text: note.content || note.text || ''
+    })) || [];
+    
+    return { data: mappedData, error: null };
   } catch (error) {
     console.error('Error fetching notes:', error);
     return { data: null, error };
@@ -65,14 +72,28 @@ export const fetchNotes = async (userId, isIdea = null) => {
 
 export const saveNote = async (userId, noteData) => {
   try {
+    // Map 'text' to 'content' for database compatibility
+    const dbData = { ...noteData };
+    if (dbData.text) {
+      dbData.content = dbData.text;
+      delete dbData.text;
+    }
+    
     const { data, error } = await supabase
       .from('notes')
-      .insert([{ user_id: userId, ...noteData }])
+      .insert([{ user_id: userId, ...dbData }])
       .select()
       .single();
     
     if (error) throw error;
-    return { data, error: null };
+    
+    // Map 'content' back to 'text' for frontend compatibility
+    const returnData = { ...data };
+    if (returnData.content) {
+      returnData.text = returnData.content;
+    }
+    
+    return { data: returnData, error: null };
   } catch (error) {
     console.error('Error saving note:', error);
     return { data: null, error };
@@ -81,15 +102,29 @@ export const saveNote = async (userId, noteData) => {
 
 export const updateNote = async (noteId, updates) => {
   try {
+    // Map 'text' to 'content' for database compatibility
+    const dbUpdates = { ...updates };
+    if (dbUpdates.text) {
+      dbUpdates.content = dbUpdates.text;
+      delete dbUpdates.text;
+    }
+    
     const { data, error } = await supabase
       .from('notes')
-      .update(updates)
+      .update(dbUpdates)
       .eq('id', noteId)
       .select()
       .single();
     
     if (error) throw error;
-    return { data, error: null };
+    
+    // Map 'content' back to 'text' for frontend compatibility
+    const returnData = { ...data };
+    if (returnData.content) {
+      returnData.text = returnData.content;
+    }
+    
+    return { data: returnData, error: null };
   } catch (error) {
     console.error('Error updating note:', error);
     return { data: null, error };

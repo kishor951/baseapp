@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, Modal, TextInput, StyleSheet, FlatList, P
 import { Ionicons } from '@expo/vector-icons';
 import TaskList from '../components/TaskList';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { fetchRoutines, saveRoutine, updateRoutine, deleteRoutine as deleteRoutineAPI } from '../utils/databaseApi';
+import { saveRoutine, updateRoutine, deleteRoutine as deleteRoutineAPI } from '../utils/databaseApi';
 
 const initialRoutines = [
   { id: 1, name: 'Yoga time', time: '12:30 AM', duration: 60 },
@@ -16,9 +16,11 @@ export default function RoutineScreen({
   setShowTaskModal = () => {},
   editTask = () => {},
   user = null, // Add user prop for database operations
+  routines = [], // Add routines prop from App.js
+  setRoutines = () => {}, // Add setRoutines prop from App.js
+  loadRoutines = () => {}, // Add loadRoutines prop from App.js
 }) {
-  const [routines, setRoutines] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [editRoutine, setEditRoutine] = useState(null);
@@ -36,7 +38,12 @@ export default function RoutineScreen({
   // Load routines from database when component mounts
   useEffect(() => {
     console.log('RoutineScreen - User object:', user);
-    loadRoutines();
+    if (user && !user.skipped) {
+      setLoading(true);
+      loadRoutines().finally(() => setLoading(false));
+    } else {
+      setLoading(false);
+    }
   }, [user]);
 
   // Helper function to get user ID from various user object structures
@@ -45,42 +52,6 @@ export default function RoutineScreen({
     if (user?.id) return user.id;
     if (user?.user?.id) return user.user.id;
     return null;
-  };
-
-  const loadRoutines = async () => {
-    const userId = getUserId();
-    console.log('Loading routines for user ID:', userId);
-    if (!userId) {
-      console.log('No user ID found, skipping routine load');
-      setLoading(false);
-      return;
-    }
-    
-    try {
-      setLoading(true);
-      const { data, error } = await fetchRoutines(userId);
-      if (error) {
-        console.error('Error loading routines:', error);
-        Alert.alert('Error', 'Failed to load routines');
-      } else {
-        // Transform database format to match current UI expectations
-        const transformedRoutines = data?.map(routine => ({
-          id: routine.id,
-          name: routine.name,
-          time: routine.schedule_time || '--:-- --',
-          duration: routine.estimated_duration_minutes || 0,
-          description: routine.description,
-          isActive: routine.is_active,
-          scheduleDays: routine.schedule_days || []
-        })) || [];
-        setRoutines(transformedRoutines);
-      }
-    } catch (err) {
-      console.error('Error loading routines:', err);
-      Alert.alert('Error', 'Failed to load routines');
-    } finally {
-      setLoading(false);
-    }
   };
 
   const openEditTaskModal = (task) => {
@@ -155,22 +126,8 @@ export default function RoutineScreen({
         return;
       }
 
-      // Update local state with new/updated routine
-      const transformedRoutine = {
-        id: data.id,
-        name: data.name,
-        time: formattedTime,
-        duration: data.estimated_duration_minutes,
-        description: data.description,
-        isActive: data.is_active,
-        scheduleDays: data.schedule_days || []
-      };
-
-      if (editRoutine) {
-        setRoutines(prev => prev.map(r => r.id === editRoutine.id ? transformedRoutine : r));
-      } else {
-        setRoutines(prev => [...prev, transformedRoutine]);
-      }
+      // Reload routines from database to ensure consistency
+      await loadRoutines();
 
       setShowModal(false);
       // Reset form
@@ -210,7 +167,8 @@ export default function RoutineScreen({
                 console.error('Error deleting routine:', error);
                 Alert.alert('Error', 'Failed to delete routine');
               } else {
-                setRoutines(prev => prev.filter(r => r.id !== routineId));
+                // Reload routines from database to ensure consistency
+                await loadRoutines();
               }
             } catch (err) {
               console.error('Error deleting routine:', err);

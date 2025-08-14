@@ -7,7 +7,7 @@ import { Animated } from 'react-native';
 import * as Font from 'expo-font';
 
 import { TimeLogProvider } from './src/context/TimeLogContext';
-import { fetchTasks, saveTask, updateTask, toggleTaskCompletion as toggleTaskCompletionAPI, deleteTask as deleteTaskAPI, fetchChatSessions, saveChatSession, fetchMessages, saveMessage, fetchNotes, saveNote, updateNote, deleteNote } from './src/utils/databaseApi';
+import { fetchTasks, saveTask, updateTask, toggleTaskCompletion as toggleTaskCompletionAPI, deleteTask as deleteTaskAPI, fetchChatSessions, saveChatSession, fetchMessages, saveMessage, fetchNotes, saveNote, updateNote, deleteNote, saveRoutine, fetchRoutines } from './src/utils/databaseApi';
 
 import useTimer from './src/hooks/useTimer';
 import FocusScreen from './src/screens/FocusScreen';
@@ -49,6 +49,7 @@ export default function App() {
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [user, setUser] = useState(null);
   const [notes, setNotes] = useState([]);
+  const [routines, setRoutines] = useState([]);
   const [showJarvinChats, setShowJarvinChats] = useState(false);
   const [tasksLoading, setTasksLoading] = useState(false);
   const [taskSaving, setTaskSaving] = useState(false);
@@ -67,6 +68,7 @@ export default function App() {
       loadTasks();
       loadChatSessions();
       loadNotes();
+      loadRoutines();
     }
   }, [user]);
 
@@ -175,6 +177,37 @@ export default function App() {
     }
   };
 
+  const loadRoutines = async () => {
+    const userId = getUserId();
+    console.log('Loading routines for user ID:', userId);
+    if (!userId) {
+      console.log('No user ID found, skipping routines load');
+      return;
+    }
+    
+    try {
+      const { data, error } = await fetchRoutines(userId);
+      if (error) {
+        console.error('Error loading routines:', error);
+        return;
+      }
+      console.log('Loaded routines:', data);
+      // Transform database format to match current UI expectations
+      const transformedRoutines = data?.map(routine => ({
+        id: routine.id,
+        name: routine.name,
+        time: routine.schedule_time || '--:-- --',
+        duration: routine.estimated_duration_minutes || 0,
+        description: routine.description,
+        isActive: routine.is_active,
+        scheduleDays: routine.schedule_days || []
+      })) || [];
+      setRoutines(transformedRoutines);
+    } catch (err) {
+      console.error('Error loading routines:', err);
+    }
+  };
+
   // Timer hook
   const {
     timeLeft,
@@ -188,6 +221,30 @@ export default function App() {
     setInitialTime,
     setIsRunning,
   } = useTimer(60 * 60);
+
+  // Idle tracking - set idle start when app loads and no timer is running
+  useEffect(() => {
+    if (!isRunning && !idleStart) {
+      setIdleStart(new Date());
+    }
+  }, [isRunning, idleStart]);
+
+  // When timer starts, clear idle tracking
+  useEffect(() => {
+    if (isRunning && idleStart) {
+      setIdleStart(null);
+    }
+  }, [isRunning]);
+
+  // When timer stops, start idle tracking again
+  useEffect(() => {
+    if (!isRunning && !idleStart) {
+      const timer = setTimeout(() => {
+        setIdleStart(new Date());
+      }, 1000); // Small delay to avoid rapid toggling
+      return () => clearTimeout(timer);
+    }
+  }, [isRunning, idleStart]);
 
   // Task management functions
   const addTask = async () => {
@@ -513,6 +570,100 @@ export default function App() {
     }
   };
 
+  // Function for Jarvin to add routines
+  const addRoutineFromJarvin = async (routineData) => {
+    const userId = getUserId();
+    if (!userId) {
+      // If no user, just add to local state
+      const newRoutine = {
+        ...routineData,
+        id: Date.now() + Math.floor(Math.random() * 10000),
+        created_at: new Date().toISOString()
+      };
+      setRoutines(prev => [...prev, newRoutine]);
+      return newRoutine;
+    }
+
+    try {
+      // Helper function to extract and format time
+      const extractAndFormatTime = (timeInput) => {
+        if (!timeInput) return '00:00:00';
+        
+        // If it's already in HH:MM:SS format, return it
+        if (/^\d{2}:\d{2}:\d{2}$/.test(timeInput)) {
+          return timeInput;
+        }
+        
+        // Extract time from text like "6:00 AM" or "Create a routine on skipping at 6:00 AM"
+        const timeRegex = /(\d{1,2}):(\d{2})\s?(AM|PM|am|pm)/;
+        const timeMatch = timeInput.match(timeRegex);
+        
+        if (timeMatch) {
+          let hours = parseInt(timeMatch[1]);
+          const minutes = timeMatch[2];
+          const ampm = timeMatch[3].toUpperCase();
+          
+          // Convert to 24-hour format
+          if (ampm === 'PM' && hours !== 12) {
+            hours += 12;
+          } else if (ampm === 'AM' && hours === 12) {
+            hours = 0;
+          }
+          
+          // Format as HH:MM:SS
+          return `${hours.toString().padStart(2, '0')}:${minutes}:00`;
+        }
+        
+        // If no time found, default to 00:00:00
+        return '00:00:00';
+      };
+
+      // Save to database using the imported saveRoutine function
+      const dbRoutineData = {
+        name: routineData.name,
+        description: routineData.description || '',
+        schedule_time: extractAndFormatTime(routineData.time || routineData.schedule_time),
+        estimated_duration_minutes: Math.round(routineData.duration || routineData.estimated_duration_minutes || 30),
+        is_active: true,
+        schedule_days: routineData.schedule_days || []
+      };
+
+      console.log('Saving routine to database:', dbRoutineData);
+      const { data, error } = await saveRoutine(userId, dbRoutineData);
+      
+      if (error) {
+        console.error('Database error saving routine:', error);
+        throw error;
+      }
+
+      // Transform database response to match UI expectations
+      const newRoutine = {
+        id: data.id,
+        name: data.name,
+        time: data.schedule_time,
+        duration: data.estimated_duration_minutes,
+        description: data.description,
+        isActive: data.is_active,
+        scheduleDays: data.schedule_days || [],
+        created_at: data.created_at
+      };
+
+      console.log('Routine saved successfully:', newRoutine);
+      setRoutines(prev => [...prev, newRoutine]);
+      return newRoutine;
+    } catch (err) {
+      console.error('Error creating routine from Jarvin:', err);
+      // Fallback to local state
+      const newRoutine = {
+        ...routineData,
+        id: Date.now() + Math.floor(Math.random() * 10000),
+        created_at: new Date().toISOString()
+      };
+      setRoutines(prev => [...prev, newRoutine]);
+      return newRoutine;
+    }
+  };
+
   const saveMessageToDatabase = async (chatSessionId, role, content) => {
     const userId = getUserId();
     if (!userId) return; // Skip database save if no user
@@ -730,6 +881,7 @@ export default function App() {
         {currentScreen === 'Timeline' && (
           <TimelineScreen
             idleStart={idleStart}
+            routines={routines}
           />
         )}
 
@@ -763,6 +915,9 @@ export default function App() {
             setShowTaskModal={setShowTaskModal}
             editTask={editTaskTitle}
             user={user}
+            routines={routines}
+            setRoutines={setRoutines}
+            loadRoutines={loadRoutines}
           />
         )}
 
@@ -770,6 +925,8 @@ export default function App() {
           <JarvinScreen
             tasks={tasks}
             setTasks={setTasks}
+            routines={routines}
+            setRoutines={setRoutines}
             notes={notes}
             setNotes={setNotes}
             chatSessions={chatSessions}
@@ -779,6 +936,7 @@ export default function App() {
             createNewChatSession={createNewChatSession}
             saveMessageToDatabase={saveMessageToDatabase}
             addTaskFromJarvin={addTaskFromJarvin}
+            addRoutineFromJarvin={addRoutineFromJarvin}
             addNote={addNote}
             user={user}
           />

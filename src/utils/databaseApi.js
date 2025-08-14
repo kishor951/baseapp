@@ -494,6 +494,27 @@ export const saveMessage = async (chatSessionId, messageData) => {
   }
 };
 
+// Enhanced function to update chat session with conversation metadata
+export const updateChatSessionContext = async (chatSessionId, contextData) => {
+  try {
+    const { data, error } = await supabase
+      .from('chat_sessions')
+      .update({ 
+        updated_at: new Date().toISOString(),
+        ...contextData
+      })
+      .eq('id', chatSessionId)
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return { data, error: null };
+  } catch (error) {
+    console.error('Error updating chat session context:', error);
+    return { data: null, error };
+  }
+};
+
 // ============================================================================
 // TIME LOGS MANAGEMENT
 // ============================================================================

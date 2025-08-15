@@ -511,18 +511,16 @@ export default function TimelineScreen({ routines = [], idleStart }) {
                     {/* Render blocks in each segment */}
                     {/* Enforce a minimum gap between blocks for even appearance */}
                     {(() => {
+                      // Stack blocks vertically, never overlap, with minimum gap
                       const MIN_BLOCK_HEIGHT = 40; // px
                       const MIN_BLOCK_GAP = 8; // px
-                      let lastBlockBottom = 0;
+                      let currentY = 0;
                       return blocks.map((block, idx) => {
                         const startMins = parseTimeString(block.start);
                         const endMins = parseTimeString(block.end);
-                        let top = startMins * pxPerMinute;
-                        let height = Math.max((endMins - startMins) * pxPerMinute, MIN_BLOCK_HEIGHT);
-                        // Ensure a minimum gap from the previous block
-                        if (top < lastBlockBottom + MIN_BLOCK_GAP) {
-                          top = lastBlockBottom + MIN_BLOCK_GAP;
-                        }
+                        let blockHeight = Math.max((endMins - startMins) * pxPerMinute, MIN_BLOCK_HEIGHT);
+                        // Always stack blocks, never overlap
+                        let top = currentY;
                         let durationMins = 0;
                         if (block.type === 'routine') {
                           const originalRoutine = routines.find(r => r.id === block.id || block.id.startsWith(r.id + '-part'));
@@ -543,21 +541,21 @@ export default function TimelineScreen({ routines = [], idleStart }) {
                         } else if (block.end && block.start) {
                           durationMins = parseTimeString(block.end) - parseTimeString(block.start);
                         }
-                        const smallBlock = height < 48;
+                        const smallBlock = blockHeight < 48;
                         const blockStyle = getBlockStyle(block.type, block.isOvernightPart);
                         const textColor = getTextColor(block.type);
                         const displayTitle = block.isOvernightPart 
                           ? `${block.title} ${block.isOvernightPart === 'start' ? '(Night)' : '(Morning)'}`
                           : block.title;
-                        // Update lastBlockBottom for next iteration
-                        lastBlockBottom = top + height;
+                        // Update currentY for next block
+                        currentY = top + blockHeight + MIN_BLOCK_GAP;
                         return (
                           <View key={block.id} style={{
                             position: 'absolute',
                             left: 8,
                             right: 8,
                             top,
-                            height,
+                            height: blockHeight,
                             borderRadius: 8,
                             padding: 6,
                             ...blockStyle,

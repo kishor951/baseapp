@@ -904,6 +904,7 @@ export default function App() {
               setCurrentScreen('Routines');
               setShowTaskModal(true);
             }}
+            userId={getUserId()}
           />
         )}
 

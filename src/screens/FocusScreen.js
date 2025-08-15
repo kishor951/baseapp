@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, SafeAreaView } from 'react-native';
 import Timer from '../components/Timer';
 import { useTimeLogs } from '../context/TimeLogContext';
+import { saveTimeLog } from '../utils/databaseApi';
 import TaskDropdown from '../components/TaskDropdown';
 import { Modal, TextInput } from 'react-native'; // Added import for Modal and TextInput
 import { Ionicons } from '@expo/vector-icons';
@@ -17,6 +18,7 @@ const TIMER_OPTIONS = [
   { label: '60 mins', value: 60 * 60 },
 ];
 
+
 export default function FocusScreen({
   currentTask,
   tasks,
@@ -31,7 +33,8 @@ export default function FocusScreen({
   addTime,
   setTimeLeft,
   setInitialTime,
-  onCreateTask // callback to open create task modal in App.js
+  onCreateTask, // callback to open create task modal in App.js
+  userId // <-- pass userId from App.js
 }) {
 
   const { addTimeLog } = useTimeLogs();
@@ -252,7 +255,7 @@ export default function FocusScreen({
               </View>
               <TouchableOpacity
                 style={{ backgroundColor: '#000', borderRadius: 12, paddingVertical: 16, width: '100%', alignItems: 'center', marginTop: 8 }}
-                onPress={() => {
+                onPress={async () => {
                   // Save log to context for timeline
                   if (timerStart && timerEnd && logTask) {
                     const logObj = {
@@ -261,10 +264,33 @@ export default function FocusScreen({
                       start: timerStart,
                       end: timerEnd,
                       duration: logDuration,
-                      date: new Date(timerStart).toDateString(),
+                      task_id: logTask?.id || null,
                     };
                     console.log('Saving log:', logObj);
-                    addTimeLog(logObj);
+                    addTimeLog({ ...logObj, date: new Date(timerStart).toDateString() }); // keep date for local context only
+                    // Save to Supabase if userId is available
+                    if (userId) {
+                      const dbLog = {
+                        activity_type: 'focus',
+                        duration_seconds: logObj.duration,
+                        notes: logObj.description,
+                        started_at: logObj.start,
+                        ended_at: logObj.end,
+                        task_id: logObj.task_id,
+                      };
+                      try {
+                        const { data, error } = await saveTimeLog(userId, dbLog);
+                        if (error) {
+                          alert('Failed to save time log to Supabase: ' + error.message);
+                          console.error('Failed to save time log to Supabase:', error);
+                        } else {
+                          console.log('Time log saved to Supabase:', data);
+                        }
+                      } catch (e) {
+                        alert('Exception saving time log: ' + e.message);
+                        console.error('Exception saving time log to Supabase:', e);
+                      }
+                    }
                   }
                   setShowLogModal(false);
                   setLogText('');

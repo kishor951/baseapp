@@ -521,12 +521,22 @@ export const updateChatSessionContext = async (chatSessionId, contextData) => {
 
 export const saveTimeLog = async (userId, timeLogData) => {
   try {
+    // Only allow columns that exist in the time_logs table
+    const allowed = {
+      user_id: userId,
+      task_id: timeLogData.task_id || null,
+      routine_id: timeLogData.routine_id || null,
+      activity_type: timeLogData.activity_type,
+      duration_seconds: timeLogData.duration_seconds,
+      notes: timeLogData.notes || null,
+      started_at: timeLogData.started_at,
+      ended_at: timeLogData.ended_at,
+    };
     const { data, error } = await supabase
       .from('time_logs')
-      .insert([{ user_id: userId, ...timeLogData }])
+      .insert([allowed])
       .select()
       .single();
-    
     if (error) throw error;
     return { data, error: null };
   } catch (error) {

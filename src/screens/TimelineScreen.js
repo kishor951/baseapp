@@ -198,88 +198,74 @@ export default function TimelineScreen({ routines = [], idleStart }) {
     }
   });
 
-  // Combine all blocks and sort by start time
-  let blocks = [...focusSessions, ...dailyRoutines];
-  blocks = blocks.sort((a, b) => parseTimeString(a.start) - parseTimeString(b.start));
 
-  // Add idle blocks to fill gaps between scheduled activities
-  const addIdleBlocks = () => {
-    if (blocks.length === 0) {
-      // If no activities and it's today, show current idle session
-      if (idleStart && isToday) {
-        const now = new Date();
+  // Combine all blocks and sort by start time
+  let activityBlocks = [...focusSessions, ...dailyRoutines];
+  activityBlocks = activityBlocks.sort((a, b) => parseTimeString(a.start) - parseTimeString(b.start));
+
+  // Build a new blocks array with non-overlapping idle blocks
+  let blocks = [];
+  if (activityBlocks.length === 0) {
+    // If no activities and it's today, show current idle session
+    if (idleStart && isToday) {
+      const now = new Date();
+      blocks.push({
+        id: 'idle-current',
+        title: 'Idle Time',
+        start: formatAMPM(idleStart),
+        end: formatAMPM(now),
+        type: 'idle',
+      });
+    }
+  } else {
+    // Add idle before first block if needed (today only)
+    if (isToday && idleStart) {
+      const idleStartMins = parseTimeString(formatAMPM(idleStart));
+      const firstBlockStart = parseTimeString(activityBlocks[0].start);
+      if (idleStartMins < firstBlockStart) {
+        blocks.push({
+          id: 'idle-morning',
+          title: 'Idle Time',
+          start: formatAMPM(idleStart),
+          end: activityBlocks[0].start,
+          type: 'idle',
+        });
+      }
+    }
+    // Add activity blocks and idle gaps between them (today only)
+    for (let i = 0; i < activityBlocks.length; i++) {
+      blocks.push(activityBlocks[i]);
+      if (i < activityBlocks.length - 1 && isToday) {
+        const currentEnd = parseTimeString(activityBlocks[i].end);
+        const nextStart = parseTimeString(activityBlocks[i + 1].start);
+        // Only add idle if gap > 15 min and no overlap
+        if (nextStart - currentEnd > 15) {
+          blocks.push({
+            id: `idle-gap-${i}`,
+            title: 'Idle Time',
+            start: activityBlocks[i].end,
+            end: activityBlocks[i + 1].start,
+            type: 'idle',
+          });
+        }
+      }
+    }
+    // Add idle after last block if needed (today only)
+    if (isToday) {
+      const lastBlockEnd = parseTimeString(activityBlocks[activityBlocks.length - 1].end);
+      const now = new Date();
+      const nowMins = now.getHours() * 60 + now.getMinutes();
+      if (nowMins > lastBlockEnd + 15) {
         blocks.push({
           id: 'idle-current',
           title: 'Idle Time',
-          start: formatAMPM(idleStart),
-          end: formatAMPM(now),
-          type: 'idle',
-        });
-      }
-      return;
-    }
-
-    const newBlocks = [];
-
-    // Check for idle time before first block (only for today)
-    if (blocks.length > 0 && isToday) {
-      const firstBlockStart = parseTimeString(blocks[0].start);
-      if (firstBlockStart > 0 && idleStart) {
-        const idleStartMins = parseTimeString(formatAMPM(idleStart));
-        if (idleStartMins < firstBlockStart) {
-          newBlocks.push({
-            id: 'idle-morning',
-            title: 'Idle Time',
-            start: formatAMPM(idleStart),
-            end: blocks[0].start,
-            type: 'idle',
-          });
-        }
-      }
-    }
-
-    // Add existing blocks and check for gaps (only show idle gaps for today)
-    for (let i = 0; i < blocks.length; i++) {
-      newBlocks.push(blocks[i]);
-      
-      if (i < blocks.length - 1 && isToday) {
-        const currentEnd = parseTimeString(blocks[i].end);
-        const nextStart = parseTimeString(blocks[i + 1].start);
-        
-        // If there's a gap of more than 15 minutes, add idle block
-        if (nextStart - currentEnd > 15) {
-          newBlocks.push({
-            id: `idle-gap-${i}`,
-            title: 'Idle Time',
-            start: blocks[i].end,
-            end: blocks[i + 1].start,
-            type: 'idle',
-          });
-        }
-      }
-    }
-
-    // Check for idle time after last block (only for today)
-    if (blocks.length > 0 && isToday) {
-      const lastBlockEnd = parseTimeString(blocks[blocks.length - 1].end);
-      const now = new Date();
-      const nowMins = now.getHours() * 60 + now.getMinutes();
-      
-      if (nowMins > lastBlockEnd + 15) {
-        newBlocks.push({
-          id: 'idle-current',
-          title: 'Idle Time',
-          start: blocks[blocks.length - 1].end,
+          start: activityBlocks[activityBlocks.length - 1].end,
           end: formatAMPM(now),
           type: 'idle',
         });
       }
     }
-
-    blocks = newBlocks;
-  };
-
-  addIdleBlocks();
+  }
 
   function getEndTime(start, duration) {
     try {

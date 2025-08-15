@@ -138,6 +138,7 @@ export default function FocusScreen({
       fetchOrGenerateSubtasks(currentTask);
     } else {
       setSubtasks([]);
+      setSubtasksError(null);
     }
   }, [currentTask]);
 
@@ -302,24 +303,24 @@ export default function FocusScreen({
             <Text style={{ fontSize: 16, color: '#333', fontFamily: 'SpaceGrotesk-Medium' }}>+10 Mins</Text>
           </TouchableOpacity>
         </View>
-        {/* Subtasks Section */}
-        <View style={{ paddingHorizontal: 20, marginTop: 32 }}>
-          <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>Subtasks</Text>
-          {subtasksLoading ? (
-            <Text style={{ color: '#888', fontStyle: 'italic' }}>Loading subtasks...</Text>
-          ) : subtasksError ? (
-            <Text style={{ color: 'red' }}>{subtasksError}</Text>
-          ) : subtasks && subtasks.length > 0 ? (
-            subtasks.map((sub, idx) => (
-              <View key={sub.id || idx} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
-                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: sub.completed ? '#4caf50' : '#bdbdbd', marginRight: 10 }} />
-                <Text style={{ fontSize: 15, color: sub.completed ? '#4caf50' : '#222' }}>{sub.title}</Text>
-              </View>
-            ))
-          ) : (
-            <Text style={{ color: '#888', fontStyle: 'italic' }}>No subtasks available.</Text>
-          )}
-        </View>
+        {/* Subtasks Section (hide if no incomplete tasks or no task selected) */}
+        {incompleteTasks.length > 0 && currentTask && currentTask.id && subtasks && subtasks.length > 0 && (
+          <View style={{ paddingHorizontal: 20, marginTop: 32 }}>
+            <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>Subtasks</Text>
+            {subtasksLoading ? (
+              <Text style={{ color: '#888', fontStyle: 'italic' }}>Loading subtasks...</Text>
+            ) : subtasksError ? (
+              <Text style={{ color: 'red' }}>{subtasksError}</Text>
+            ) : (
+              subtasks.map((sub, idx) => (
+                <View key={sub.id || idx} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+                  <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: sub.completed ? '#4caf50' : '#bdbdbd', marginRight: 10 }} />
+                  <Text style={{ fontSize: 15, color: sub.completed ? '#4caf50' : '#222' }}>{sub.title}</Text>
+                </View>
+              ))
+            )}
+          </View>
+        )}
 
         {/* AI Assistant */}
         <View style={{ paddingHorizontal: 20, marginTop: 40 }}>

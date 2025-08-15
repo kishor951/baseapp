@@ -60,13 +60,31 @@ function getBlockPosition(start, end) {
   return { top, height };
 }
 
-export default function TimelineScreen({ routines = [], idleStart }) {
-  const { timeLogs } = useTimeLogs();
+import { fetchTimeLogs } from '../utils/databaseApi';
+
+export default function TimelineScreen({ routines = [], idleStart, userId, timeLogs: propTimeLogs }) {
+  // Use propTimeLogs if provided, else context, else fetch from DB
+  const context = useTimeLogs ? useTimeLogs() : {};
+  const [timeLogs, setTimeLogs] = useState(propTimeLogs || context.timeLogs || []);
   const [activeTab, setActiveTab] = useState('Blocks');
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [monthModalVisible, setMonthModalVisible] = useState(false);
   const [nowY, setNowY] = useState(0);
   const [currentTimeLabel, setCurrentTimeLabel] = useState('');
+
+  // Fetch time logs from DB if not present
+  const refreshTimeLogs = () => {
+    if (userId) {
+      fetchTimeLogs(userId).then(({ data, error }) => {
+        if (data) setTimeLogs(data);
+      });
+    }
+  };
+  useEffect(() => {
+    if ((!timeLogs || timeLogs.length === 0) && userId) {
+      refreshTimeLogs();
+    }
+  }, [userId]);
 
   // Helper functions - defined early to avoid hoisting issues
   const isSameDay = (d1, d2) => d1.getDate() === d2.getDate() && d1.getMonth() === d2.getMonth() && d1.getFullYear() === d2.getFullYear();
@@ -128,14 +146,30 @@ export default function TimelineScreen({ routines = [], idleStart }) {
   };
   
   // Get focus sessions (time logs) for selected day
-  const focusSessions = timeLogs.filter(log => isSameDay(new Date(log.start), selectedDate)).map(log => ({
-    id: log.id,
-    title: log.title,
-    start: formatAMPM(new Date(log.start)),
-    end: formatAMPM(new Date(log.end)),
-    type: 'focus',
-    description: log.description,
-  }));
+  const focusSessions = (timeLogs || []).filter(log => {
+    // Prefer started_at/ended_at from DB, fallback to start/end
+    const startDate = log.started_at ? new Date(log.started_at) : (log.start ? new Date(log.start) : null);
+    return startDate && isSameDay(startDate, selectedDate);
+  }).map(log => {
+    // Use started_at/ended_at for DB logs, fallback to start/end for local logs
+    const startDate = log.started_at ? new Date(log.started_at) : (log.start ? new Date(log.start) : null);
+    const endDate = log.ended_at ? new Date(log.ended_at) : (log.end ? new Date(log.end) : null);
+    // If either is missing, skip this block
+    if (!startDate || !endDate) return null;
+    // Title: prefer log.title, then tasks.title, then notes, then fallback
+    let title = log.title;
+    if (!title && log.tasks && log.tasks.title) title = log.tasks.title;
+    if (!title && log.notes) title = log.notes;
+    if (!title) title = 'Focus Session';
+    return {
+      id: log.id,
+      title,
+      start: formatAMPM(startDate),
+      end: formatAMPM(endDate),
+      type: 'focus',
+      description: log.description || log.notes || '',
+    };
+  }).filter(Boolean);
 
   // Get routines for selected day (handle overnight routines properly)
   const dailyRoutines = [];
@@ -389,7 +423,7 @@ export default function TimelineScreen({ routines = [], idleStart }) {
         <TouchableOpacity onPress={goToPrevDay}>
           <Ionicons name="chevron-back-outline" size={28} color="#42281A" />
         </TouchableOpacity>
-        <View style={{ alignItems: 'center' }}>
+        <View style={{ alignItems: 'center', flex: 1 }}>
           <Text style={styles.timelineTitle}>Timeline</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Text style={{ fontSize: 16, fontWeight: '500', marginTop: 2 }}>
@@ -408,7 +442,10 @@ export default function TimelineScreen({ routines = [], idleStart }) {
             )}
           </View>
         </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <TouchableOpacity onPress={refreshTimeLogs} style={{ marginRight: 8 }}>
+            <Ionicons name="refresh" size={24} color="#42281A" />
+          </TouchableOpacity>
           <TouchableOpacity style={styles.monthSelector} onPress={() => setMonthModalVisible(true)}>
             <Text style={styles.monthSelectorText}>{dayInfo.month}</Text>
             <Ionicons name="chevron-down-outline" size={20} color="#fff" />

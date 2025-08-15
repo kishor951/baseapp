@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, SafeAreaView } from 'react-native';
 import Timer from '../components/Timer';
 import { useTimeLogs } from '../context/TimeLogContext';
-import { saveTimeLog } from '../utils/databaseApi';
+import { saveTimeLog, saveSubtask } from '../utils/databaseApi';
+import { supabase } from '../utils/supabaseClient';
 import TaskDropdown from '../components/TaskDropdown';
 import { Modal, TextInput } from 'react-native'; // Added import for Modal and TextInput
 import { Ionicons } from '@expo/vector-icons';
@@ -48,6 +49,79 @@ export default function FocusScreen({
   // Filter out completed tasks
   const incompleteTasks = tasks.filter(task => !task.completed);
 
+  // Subtasks state
+  const [subtasks, setSubtasks] = useState([]);
+  const [subtasksLoading, setSubtasksLoading] = useState(false);
+  const [subtasksError, setSubtasksError] = useState(null);
+  // Helper to get subtasks from DB or generate via AI
+  const fetchOrGenerateSubtasks = async (task) => {
+    setSubtasksError(null);
+    setSubtasksLoading(true);
+    setSubtasks([]);
+    if (!task || !task.id) {
+      setSubtasksLoading(false);
+      return;
+    }
+    // Always fetch subtasks from DB
+    try {
+      const { data: dbSubtasks, error: dbError } = await supabase
+        .from('subtasks')
+        .select('*')
+        .eq('task_id', task.id)
+        .order('order_index', { ascending: true });
+      if (dbError) {
+        setSubtasksError('Failed to fetch subtasks from DB');
+        setSubtasksLoading(false);
+        return;
+      }
+      if (dbSubtasks && dbSubtasks.length > 0) {
+        setSubtasks(dbSubtasks);
+        setSubtasksLoading(false);
+        return;
+      }
+      // If no subtasks in DB, generate via AI
+      const aiResult = await getSubtasksFromGoogleAI(task.title);
+      let aiSubtasks = Array.isArray(aiResult) ? aiResult : aiResult.subtasks;
+      if (aiResult && aiResult.error) {
+        setSubtasksError('AI error: ' + aiResult.error);
+        console.error('AI subtask error:', aiResult.error, aiResult);
+        setSubtasksLoading(false);
+        return;
+      }
+      if (!aiSubtasks || aiSubtasks.length === 0) {
+        setSubtasks([]);
+        setSubtasksLoading(false);
+        return;
+      }
+      // Save each subtask to DB with order_index
+      for (let i = 0; i < aiSubtasks.length; i++) {
+        const subtaskTitle = aiSubtasks[i];
+        const orderIndex = i + 1;
+        try {
+          await saveSubtask(task.id, { title: subtaskTitle, completed: false, order_index: orderIndex });
+        } catch (e) {
+          console.error('Error saving subtask:', e);
+        }
+      }
+      // Fetch again from DB to get saved subtasks (order by order_index)
+      const { data: savedSubtasks, error: savedError } = await supabase
+        .from('subtasks')
+        .select('*')
+        .eq('task_id', task.id)
+        .order('order_index', { ascending: true });
+      if (savedError) {
+        setSubtasksError('Failed to fetch saved subtasks');
+        setSubtasksLoading(false);
+        return;
+      }
+      setSubtasks(savedSubtasks || []);
+    } catch (err) {
+      setSubtasksError('Failed to get subtasks: ' + (err?.message || err));
+      console.error('Subtask fetch/generate error:', err);
+    }
+    setSubtasksLoading(false);
+  };
+
   useEffect(() => {
     if (isRunning && timeLeft === selectedTimer) {
       setTimerStart(new Date());
@@ -57,6 +131,15 @@ export default function FocusScreen({
       setTimerEnd(new Date());
     }
   }, [isRunning, timeLeft, selectedTimer]);
+
+  // Fetch/generate subtasks when currentTask changes
+  useEffect(() => {
+    if (currentTask && currentTask.id) {
+      fetchOrGenerateSubtasks(currentTask);
+    } else {
+      setSubtasks([]);
+    }
+  }, [currentTask]);
 
   useEffect(() => {
     if (timeLeft === 0) {
@@ -219,6 +302,25 @@ export default function FocusScreen({
             <Text style={{ fontSize: 16, color: '#333', fontFamily: 'SpaceGrotesk-Medium' }}>+10 Mins</Text>
           </TouchableOpacity>
         </View>
+        {/* Subtasks Section */}
+        <View style={{ paddingHorizontal: 20, marginTop: 32 }}>
+          <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>Subtasks</Text>
+          {subtasksLoading ? (
+            <Text style={{ color: '#888', fontStyle: 'italic' }}>Loading subtasks...</Text>
+          ) : subtasksError ? (
+            <Text style={{ color: 'red' }}>{subtasksError}</Text>
+          ) : subtasks && subtasks.length > 0 ? (
+            subtasks.map((sub, idx) => (
+              <View key={sub.id || idx} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: sub.completed ? '#4caf50' : '#bdbdbd', marginRight: 10 }} />
+                <Text style={{ fontSize: 15, color: sub.completed ? '#4caf50' : '#222' }}>{sub.title}</Text>
+              </View>
+            ))
+          ) : (
+            <Text style={{ color: '#888', fontStyle: 'italic' }}>No subtasks available.</Text>
+          )}
+        </View>
+
         {/* AI Assistant */}
         <View style={{ paddingHorizontal: 20, marginTop: 40 }}>
           <AIInput />

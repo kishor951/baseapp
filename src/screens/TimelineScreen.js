@@ -447,138 +447,165 @@ export default function TimelineScreen({ routines = [], idleStart }) {
       {activeTab === 'Blocks' && (
         <View style={{ flex: 1, marginTop: 20 }}>
           <ScrollView style={{ flex: 1 }} contentContainerStyle={{ minHeight: TIMELINE_HEIGHT + 40, paddingBottom: 40 }}>
-            <View style={{ flexDirection: 'row', position: 'relative', height: TIMELINE_HEIGHT, backgroundColor: '#FFF6F5', borderRadius: 16, overflow: 'hidden', marginHorizontal: 20 }}>
-              {/* Time scale - 30 min divisions */}
-              <View style={{ width: 60, paddingVertical: 8 }}>
-                {HALF_HOURS.map(mins => {
-                  const h = Math.floor(mins / 60);
-                  const m = mins % 60;
-                  return (
-                    <View key={mins} style={{ height: 40, justifyContent: 'flex-start' }}>
-                      <Text style={{ color: '#42281A', fontSize: 13 }}>{h.toString().padStart(2, '0')}:{m === 0 ? '00' : '30'}</Text>
-                    </View>
-                  );
-                })}
-              </View>
-              {/* Blocks overlay + live time line */}
-              <View style={{ flex: 1, position: 'relative' }}>
-                {/* Live current time line with label */}
-                {nowY !== null && (
-                  <>
-                    <View style={{
-                      position: 'absolute',
-                      left: 0,
-                      right: 0,
-                      top: nowY,
-                      height: 2,
-                      backgroundColor: '#FF6F61',
-                      zIndex: 10,
-                    }} />
-                    <View style={{
-                      position: 'absolute',
-                      right: 0,
-                      top: nowY - 12,
-                      backgroundColor: '#FF6F61',
-                      borderRadius: 6,
-                      paddingHorizontal: 8,
-                      paddingVertical: 2,
-                      zIndex: 11,
-                    }}>
-                      <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 13 }}>{currentTimeLabel}</Text>
-                    </View>
-                  </>
-                )}
-                {blocks.map(block => {
-                  const { top, height } = getBlockPosition(block.start, block.end);
-                  // Calculate duration in minutes
-                  let durationMins = 0;
-                  if (block.type === 'routine') {
-                    // For routines, get duration from the original routine object or calculate from start/end
-                    const originalRoutine = routines.find(r => r.id === block.id || block.id.startsWith(r.id + '-part'));
-                    if (originalRoutine && originalRoutine.duration) {
-                      // For overnight parts, calculate the partial duration
-                      if (block.isOvernightPart === 'start') {
-                        // Duration from start time to 11:59 PM
-                        const startMins = parseTimeString(block.start);
-                        const endOfDayMins = 23 * 60 + 59;
-                        durationMins = endOfDayMins - startMins + 1;
-                      } else if (block.isOvernightPart === 'end') {
-                        // Duration from 12:00 AM to end time
-                        const endMins = parseTimeString(block.end);
-                        durationMins = endMins;
-                      } else {
-                        durationMins = parseInt(originalRoutine.duration);
-                      }
-                    } else if (block.end && block.start) {
-                      durationMins = parseTimeString(block.end) - parseTimeString(block.start);
-                    }
-                  } else if (block.end && block.start) {
-                    durationMins = parseTimeString(block.end) - parseTimeString(block.start);
-                  }
-                  // Reduce font size if block is short
-                  const smallBlock = height < 40;
-                  const blockStyle = getBlockStyle(block.type, block.isOvernightPart);
-                  const textColor = getTextColor(block.type);
-                  
-                  // Generate title with overnight indicator
-                  const displayTitle = block.isOvernightPart 
-                    ? `${block.title} ${block.isOvernightPart === 'start' ? '(Night)' : '(Morning)'}`
-                    : block.title;
-                  
-                  return (
-                    <View key={block.id} style={{
-                      position: 'absolute',
-                      left: 8,
-                      right: 8,
-                      top,
-                      height,
-                      borderRadius: 8,
-                      padding: 6,
-                      ...blockStyle,
-                    }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <Text style={{ 
-                          fontSize: smallBlock ? 12 : 15, 
-                          fontWeight: 'bold',
-                          color: textColor,
-                        }}>
-                          {displayTitle}
-                        </Text>
-                        <View>
-                          <Text style={{ 
-                            fontWeight: 'bold', 
-                            fontSize: smallBlock ? 10 : 13,
-                            color: textColor,
-                          }}>
-                            {durationMins} min
-                          </Text>
+            {/* --- Dynamic Time Scale and Segments --- */}
+            {(() => {
+              // 1. Gather all unique split points (in minutes): 0, 30, 60, ... + all block start/end times
+              let splitPoints = new Set([0, 24 * 60]);
+              blocks.forEach(b => {
+                splitPoints.add(parseTimeString(b.start));
+                splitPoints.add(parseTimeString(b.end));
+              });
+              for (let m = 0; m < 24 * 60; m += 30) {
+                splitPoints.add(m);
+              }
+              const splitArr = Array.from(splitPoints).sort((a, b) => a - b);
+              // 2. Build segments
+              const segments = [];
+              for (let i = 0; i < splitArr.length - 1; i++) {
+                segments.push({ start: splitArr[i], end: splitArr[i + 1] });
+              }
+              // 3. Render
+              return (
+                <View style={{ flexDirection: 'row', position: 'relative', minHeight: TIMELINE_HEIGHT, backgroundColor: '#FFF6F5', borderRadius: 16, overflow: 'hidden', marginHorizontal: 20 }}>
+                  {/* Time scale - dynamic divisions */}
+                  <View style={{ width: 60, paddingVertical: 8 }}>
+                    {segments.map(seg => {
+                      const h = Math.floor(seg.start / 60);
+                      const m = seg.start % 60;
+                      const segHeight = (seg.end - seg.start) * pxPerMinute;
+                      return (
+                        <View key={seg.start} style={{ height: segHeight, justifyContent: 'flex-start' }}>
+                          <Text style={{ color: '#42281A', fontSize: 13 }}>{h.toString().padStart(2, '0')}:{m.toString().padStart(2, '0')}</Text>
                         </View>
-                      </View>
-                      {/* Description if present */}
-                      {block.description && (
-                        <Text style={{ 
-                          fontSize: 12, 
-                          marginTop: 2,
-                          color: textColor,
-                          opacity: 0.9,
+                      );
+                    })}
+                  </View>
+                  {/* Blocks overlay + live time line */}
+                  <View style={{ flex: 1, position: 'relative' }}>
+                    {/* Live current time line with label */}
+                    {nowY !== null && (
+                      <>
+                        <View style={{
+                          position: 'absolute',
+                          left: 0,
+                          right: 0,
+                          top: nowY,
+                          height: 2,
+                          backgroundColor: '#FF6F61',
+                          zIndex: 10,
+                        }} />
+                        <View style={{
+                          position: 'absolute',
+                          right: 0,
+                          top: nowY - 12,
+                          backgroundColor: '#FF6F61',
+                          borderRadius: 6,
+                          paddingHorizontal: 8,
+                          paddingVertical: 2,
+                          zIndex: 11,
                         }}>
-                          {block.description}
-                        </Text>
-                      )}
-                      {/* Show time range for better context */}
-                      <Text style={{ 
-                        fontSize: 11, 
-                        marginTop: 2,
-                        color: textColor,
-                        opacity: 0.8,
-                      }}>
-                        {block.start} - {block.end}
-                      </Text>
-                    </View>
-                  );
-                })}
-              </View>
-            </View>
+                          <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 13 }}>{currentTimeLabel}</Text>
+                        </View>
+                      </>
+                    )}
+                    {/* Render blocks in each segment */}
+                    {/* Enforce a minimum gap between blocks for even appearance */}
+                    {(() => {
+                      const MIN_BLOCK_HEIGHT = 40; // px
+                      const MIN_BLOCK_GAP = 8; // px
+                      let lastBlockBottom = 0;
+                      return blocks.map((block, idx) => {
+                        const startMins = parseTimeString(block.start);
+                        const endMins = parseTimeString(block.end);
+                        let top = startMins * pxPerMinute;
+                        let height = Math.max((endMins - startMins) * pxPerMinute, MIN_BLOCK_HEIGHT);
+                        // Ensure a minimum gap from the previous block
+                        if (top < lastBlockBottom + MIN_BLOCK_GAP) {
+                          top = lastBlockBottom + MIN_BLOCK_GAP;
+                        }
+                        let durationMins = 0;
+                        if (block.type === 'routine') {
+                          const originalRoutine = routines.find(r => r.id === block.id || block.id.startsWith(r.id + '-part'));
+                          if (originalRoutine && originalRoutine.duration) {
+                            if (block.isOvernightPart === 'start') {
+                              const startMins = parseTimeString(block.start);
+                              const endOfDayMins = 23 * 60 + 59;
+                              durationMins = endOfDayMins - startMins + 1;
+                            } else if (block.isOvernightPart === 'end') {
+                              const endMins = parseTimeString(block.end);
+                              durationMins = endMins;
+                            } else {
+                              durationMins = parseInt(originalRoutine.duration);
+                            }
+                          } else if (block.end && block.start) {
+                            durationMins = parseTimeString(block.end) - parseTimeString(block.start);
+                          }
+                        } else if (block.end && block.start) {
+                          durationMins = parseTimeString(block.end) - parseTimeString(block.start);
+                        }
+                        const smallBlock = height < 48;
+                        const blockStyle = getBlockStyle(block.type, block.isOvernightPart);
+                        const textColor = getTextColor(block.type);
+                        const displayTitle = block.isOvernightPart 
+                          ? `${block.title} ${block.isOvernightPart === 'start' ? '(Night)' : '(Morning)'}`
+                          : block.title;
+                        // Update lastBlockBottom for next iteration
+                        lastBlockBottom = top + height;
+                        return (
+                          <View key={block.id} style={{
+                            position: 'absolute',
+                            left: 8,
+                            right: 8,
+                            top,
+                            height,
+                            borderRadius: 8,
+                            padding: 6,
+                            ...blockStyle,
+                          }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                              <Text style={{ 
+                                fontSize: smallBlock ? 12 : 15, 
+                                fontWeight: 'bold',
+                                color: textColor,
+                              }}>
+                                {displayTitle}
+                              </Text>
+                              <View>
+                                <Text style={{ 
+                                  fontWeight: 'bold', 
+                                  fontSize: smallBlock ? 10 : 13,
+                                  color: textColor,
+                                }}>
+                                  {durationMins} min
+                                </Text>
+                              </View>
+                            </View>
+                            {block.description && (
+                              <Text style={{ 
+                                fontSize: 12, 
+                                marginTop: 2,
+                                color: textColor,
+                                opacity: 0.9,
+                              }}>
+                                {block.description}
+                              </Text>
+                            )}
+                            <Text style={{ 
+                              fontSize: 11, 
+                              marginTop: 2,
+                              color: textColor,
+                              opacity: 0.8,
+                            }}>
+                              {block.start} - {block.end}
+                            </Text>
+                          </View>
+                        );
+                      });
+                    })()}
+                  </View>
+                </View>
+              );
+            })()}
           </ScrollView>
         </View>
       )}

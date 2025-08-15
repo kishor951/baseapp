@@ -59,7 +59,7 @@ export default function SignupScreen({ onSignup, onSkip }) {
     setError('');
     
     try {
-      console.log(`🔄 ${mode === 'signup' ? 'Signing up' : 'Logging in'} user:`, email);
+      // console.log(`🔄 ${mode === 'signup' ? 'Signing up' : 'Logging in'} user:`, email);
       
       const normalizedEmail = email.trim().toLowerCase();
       
@@ -77,10 +77,10 @@ export default function SignupScreen({ onSignup, onSkip }) {
         });
         
         if (error) {
-          console.log('❌ Signup error:', error);
+          // console.log('❌ Signup error:', error);
           setError(error.message);
         } else if (data?.user) {
-          console.log('✅ Signup successful:', data.user.id);
+          // console.log('✅ Signup successful:', data.user.id);
           
           // Check if email confirmation is required
           if (!data.session) {
@@ -105,10 +105,10 @@ export default function SignupScreen({ onSignup, onSkip }) {
         });
         
         if (error) {
-          console.log('❌ Login error:', error);
+          // console.log('❌ Login error:', error);
           setError(error.message);
         } else if (data?.user) {
-          console.log('✅ Login successful:', data.user.id);
+          // console.log('✅ Login successful:', data.user.id);
           
           // Success - pass consistent user object
           onSignup({
@@ -120,7 +120,7 @@ export default function SignupScreen({ onSignup, onSkip }) {
         }
       }
     } catch (err) {
-      console.log('💥 Unexpected auth error:', err);
+      // console.log('💥 Unexpected auth error:', err);
       setError('An unexpected error occurred. Please try again.');
     } finally {
       setLoading(false);

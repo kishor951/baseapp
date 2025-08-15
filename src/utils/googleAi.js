@@ -25,7 +25,7 @@ export async function getSubtasksFromGoogleAI(taskTitle, difficulty = 'medium') 
     // Split into array by line, remove empty lines
     return text.split(/\n|\r/).map(line => line.replace(/^\d+\.\s*/, '').trim()).filter(Boolean);
   } catch (err) {
-    console.error('Google AI API error:', err);
+    // console.error('Google AI API error:', err);
     return { error: err?.message || 'Failed to fetch subtasks', subtasks: [] };
   }
 }

@@ -44,6 +44,7 @@ export default function FocusScreen({
   const [timerStart, setTimerStart] = useState(null);
   const [timerEnd, setTimerEnd] = useState(null);
   const [logDuration, setLogDuration] = useState(selectedTimer);
+  const [logSaving, setLogSaving] = useState(false);
   // Filter out completed tasks
   const incompleteTasks = tasks.filter(task => !task.completed);
 
@@ -254,8 +255,12 @@ export default function FocusScreen({
                 </View>
               </View>
               <TouchableOpacity
-                style={{ backgroundColor: '#000', borderRadius: 12, paddingVertical: 16, width: '100%', alignItems: 'center', marginTop: 8 }}
+                style={{ backgroundColor: '#000', borderRadius: 12, paddingVertical: 16, width: '100%', alignItems: 'center', marginTop: 8, opacity: logSaving ? 0.7 : 1 }}
+                disabled={logSaving}
                 onPress={async () => {
+                  if (logSaving) return;
+                  setLogSaving(true);
+                  let saveError = null;
                   // Save log to context for timeline
                   if (timerStart && timerEnd && logTask) {
                     const logObj = {
@@ -266,7 +271,6 @@ export default function FocusScreen({
                       duration: logDuration,
                       task_id: logTask?.id || null,
                     };
-                    console.log('Saving log:', logObj);
                     addTimeLog({ ...logObj, date: new Date(timerStart).toDateString() }); // keep date for local context only
                     // Save to Supabase if userId is available
                     if (userId) {
@@ -281,27 +285,26 @@ export default function FocusScreen({
                       try {
                         const { data, error } = await saveTimeLog(userId, dbLog);
                         if (error) {
-                          alert('Failed to save time log to Supabase: ' + error.message);
-                          console.error('Failed to save time log to Supabase:', error);
-                        } else {
-                          console.log('Time log saved to Supabase:', data);
+                          saveError = error;
                         }
                       } catch (e) {
-                        alert('Exception saving time log: ' + e.message);
-                        console.error('Exception saving time log to Supabase:', e);
+                        saveError = e;
                       }
                     }
                   }
+                  setLogSaving(false);
                   setShowLogModal(false);
                   setLogText('');
                   setTimerStart(null);
                   setTimerEnd(null);
-                  // Reset timer to selected time
                   setTimeLeft(selectedTimer);
                   setInitialTime(selectedTimer);
+                  if (saveError) {
+                    alert('Failed to save time log to database: ' + (saveError.message || saveError));
+                  }
                 }}
               >
-                <Text style={{ color: '#fff', fontSize: 18, fontWeight: 'bold' }}>ENTER</Text>
+                <Text style={{ color: '#fff', fontSize: 18, fontWeight: 'bold' }}>{logSaving ? 'Saving...' : 'ENTER'}</Text>
               </TouchableOpacity>
             </View>
           </View>

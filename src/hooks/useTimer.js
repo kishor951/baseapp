@@ -49,7 +49,7 @@ export default function useTimer(initialSeconds = 3600) {
 
   const toggleTimer = () => {
     setIsRunning(running => {
-      console.log('toggleTimer called. Previous isRunning:', running, 'Next isRunning:', !running);
+      // console.log('toggleTimer called. Previous isRunning:', running, 'Next isRunning:', !running);
       return !running;
     });
   };

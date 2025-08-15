@@ -31,7 +31,7 @@ function parseTimeString(t) {
     
     return h * 60 + m;
   } catch (error) {
-    console.error('Error parsing time string:', t, error);
+    // console.error('Error parsing time string:', t, error);
     return 0;
   }
 }
@@ -300,7 +300,7 @@ export default function TimelineScreen({ routines = [], idleStart }) {
       endM = endM < 10 ? '0' + endM : endM;
       return `${endH}:${endM} ${endAP}`;
     } catch (error) {
-      console.error('Error calculating end time:', start, duration, error);
+      // console.error('Error calculating end time:', start, duration, error);
       return '';
     }
   }

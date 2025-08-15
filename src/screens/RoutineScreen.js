@@ -37,7 +37,7 @@ export default function RoutineScreen({
 
   // Load routines from database when component mounts
   useEffect(() => {
-    console.log('RoutineScreen - User object:', user);
+    // console.log('RoutineScreen - User object:', user);
     if (user && !user.skipped) {
       setLoading(true);
       loadRoutines().finally(() => setLoading(false));
@@ -89,7 +89,7 @@ export default function RoutineScreen({
     }
     
     const userId = getUserId();
-    console.log('Saving routine for user ID:', userId);
+    // console.log('Saving routine for user ID:', userId);
     if (!userId) {
       Alert.alert('Error', 'User not authenticated');
       return;
@@ -121,7 +121,7 @@ export default function RoutineScreen({
 
       const { data, error } = result;
       if (error) {
-        console.error('Error saving routine:', error);
+        // console.error('Error saving routine:', error);
         Alert.alert('Error', 'Failed to save routine');
         return;
       }
@@ -138,7 +138,7 @@ export default function RoutineScreen({
       setDurationMode('preset');
       
     } catch (err) {
-      console.error('Error saving routine:', err);
+      // console.error('Error saving routine:', err);
       Alert.alert('Error', 'Failed to save routine');
     } finally {
       setSaving(false);
@@ -164,14 +164,14 @@ export default function RoutineScreen({
             try {
               const { error } = await deleteRoutineAPI(routineId);
               if (error) {
-                console.error('Error deleting routine:', error);
+                // console.error('Error deleting routine:', error);
                 Alert.alert('Error', 'Failed to delete routine');
               } else {
                 // Reload routines from database to ensure consistency
                 await loadRoutines();
               }
             } catch (err) {
-              console.error('Error deleting routine:', err);
+              // console.error('Error deleting routine:', err);
               Alert.alert('Error', 'Failed to delete routine');
             }
           }

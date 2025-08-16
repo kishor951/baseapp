@@ -11,19 +11,21 @@
   },
   "dependencies": {
     "@expo/vector-icons": "^14.1.0",
-    "@react-native-community/datetimepicker": "^8.4.4",
+    "@react-native-community/datetimepicker": "8.4.1",
     "@supabase/supabase-js": "^2.54.0",
-    "expo": "~53.0.20",
-    "expo-app-loading": "^2.1.1",
+    "expo": "53.0.20",
     "expo-auth-session": "^6.2.1",
     "expo-clipboard": "^7.1.5",
     "expo-font": "^13.3.2",
+    "expo-splash-screen": "~0.30.10",
     "expo-status-bar": "~2.2.3",
     "react": "19.0.0",
     "react-native": "0.79.5",
     "react-native-markdown-display": "^7.0.2",
-    "react-native-svg": "^15.12.1",
-    "react-native-voice": "^0.3.0"
+    "react-native-svg": "15.11.2",
+    "react-native-voice": "^0.3.0",
+    "@expo/config-plugins": "~10.1.1",
+    "@expo/prebuild-config": "~9.0.0"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0"

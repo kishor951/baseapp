@@ -87,7 +87,7 @@ export default function JarvinScreen({
           PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
           {
             title: 'Microphone Permission',
-            message: 'Jarvin needs access to your microphone for speech recognition.',
+            message: 'Timvis needs access to your microphone for speech recognition.',
             buttonNeutral: 'Ask Me Later',
             buttonNegative: 'Cancel',
             buttonPositive: 'OK',
@@ -135,7 +135,7 @@ export default function JarvinScreen({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   React.useEffect(() => {
-    console.log('JarvinScreen mounted');
+    console.log('TimvisScreen mounted');
     if (!GOOGLE_API_KEY) {
       setError('Google API key is missing. Please check your app.json and restart Expo.');
     }
@@ -189,7 +189,7 @@ export default function JarvinScreen({
         const recentNotes = notes.slice(0, 5);
         const conversationContext = analyzeConversationContext(messages, input);
         
-        let contextPrompt = `You are Jarvin, an intelligent productivity assistant. You maintain conversation context and build upon previous exchanges.
+        let contextPrompt = `You are Timvis, an intelligent productivity assistant. You maintain conversation context and build upon previous exchanges.
 
 CURRENT USER CONTEXT:
 - Active tasks: ${activeTasks.length} (${activeTasks.slice(0, 3).map(t => t.title).join(', ')}${activeTasks.length > 3 ? '...' : ''})
@@ -575,14 +575,14 @@ Remember: Each response should feel like a continuation of our ongoing conversat
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 80}
         >
-          <View style={{ padding: 20, paddingTop: 20, borderBottomWidth: 1, borderBottomColor: '#eee', flexDirection: 'row', alignItems: 'center' }}>
-            <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#222' }}>Jarvin</Text>
-          </View>
+
           <ScrollView style={{ flex: 1, padding: 20 }} contentContainerStyle={{ paddingBottom: 80 }}>
             {messages
               .filter(msg => msg.role !== 'SYSTEM')
               .map((msg, idx) => (
                 <View key={idx} style={{ marginBottom: 18, alignSelf: msg.role === 'USER' ? 'flex-end' : 'flex-start', maxWidth: '80%' }}>
+                  {/* Sender name above bubble */}
+                  <Text style={{ fontSize: 12, color: '#888', marginBottom: 2, textAlign: msg.role === 'USER' ? 'right' : 'left' }}>{msg.role === 'USER' ? 'You' : 'Timvis'}</Text>
                   <View style={{ backgroundColor: msg.role === 'USER' ? '#e0e0e0' : '#d1eaff', borderRadius: 12, padding: 14 }}>
                     {msg.role === 'ASSISTANT' ? (
                       <Markdown style={{ body: { fontSize: 16, color: '#222' } }}>{msg.text}</Markdown>
@@ -606,7 +606,7 @@ Remember: Each response should feel like a continuation of our ongoing conversat
                             await addNote({ text: msg.text }, false);
                           } else if (setNotes) {
                             // Fallback to local state for guests
-                            setNotes(prev => [...prev, { id: Date.now(), text: msg.text, created_at: new Date().toISOString(), from: 'Jarvin', is_idea: false }]);
+                            setNotes(prev => [...prev, { id: Date.now(), text: msg.text, created_at: new Date().toISOString(), from: 'Timvis', is_idea: false }]);
                           }
                         }}
                         style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#e0e0e0', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 2 }}
@@ -616,7 +616,6 @@ Remember: Each response should feel like a continuation of our ongoing conversat
                       </TouchableOpacity>
                     </View>
                   )}
-                  <Text style={{ fontSize: 12, color: '#888', marginTop: 2, textAlign: msg.role === 'USER' ? 'right' : 'left' }}>{msg.role === 'USER' ? 'You' : 'Jarvin'}</Text>
                 </View>
               ))}
             {loading && <ActivityIndicator size="small" color="#007AFF" style={{ marginTop: 10 }} />}
@@ -664,7 +663,7 @@ Remember: Each response should feel like a continuation of our ongoing conversat
                 paddingBottom: 10,
                 textAlignVertical: 'top',
               }}
-              placeholder="Ask Jarvin anything..."
+              placeholder="Ask Timvis anything..."
               value={input}
               onChangeText={setInput}
               editable={!loading}

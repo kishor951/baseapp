@@ -11,7 +11,6 @@ import { getSubtasksFromGoogleAI } from '../utils/googleAi';
 import AIInput from '../components/AIInput';
 
 const TIMER_OPTIONS = [
-  { label: '10 sec (Test)', value: 10 },
   { label: '15 mins', value: 15 * 60 },
   { label: '25 mins', value: 25 * 60 },
   { label: '30 mins', value: 30 * 60 },

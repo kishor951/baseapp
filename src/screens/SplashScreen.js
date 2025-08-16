@@ -19,7 +19,7 @@ export default function SplashScreen({ onFinish }) {
   return (
     <View style={styles.container}>
       <Animated.View style={{ opacity: fadeAnim }}>
-        <Text style={styles.title}>WorkSight!</Text>
+        <Text style={styles.title}>Timvis AI!</Text>
         <View style={styles.dotContainer}>
           <Animated.View style={[styles.dot, { transform: [{ scale: fadeAnim }] }]} />
         </View>

@@ -1,11 +1,24 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { supabase } from '../utils/supabaseClient';
-import { View, Text, TouchableOpacity, TextInput, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, StyleSheet, ActivityIndicator, Animated, Easing, Image } from 'react-native';
+import icon from '../../assets/icon.png';
 import * as Google from 'expo-auth-session/providers/google';
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 
 export default function SignupScreen({ onSignup, onSkip }) {
+  // Glaze animation setup
+  const glazeAnim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.loop(
+      Animated.timing(glazeAnim, {
+        toValue: 1,
+        duration: 2200,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      })
+    ).start();
+  }, [glazeAnim]);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -141,6 +154,39 @@ export default function SignupScreen({ onSignup, onSkip }) {
 
   return (
     <View style={styles.container}>
+      {/* Animated App Icon with glaze effect */}
+      <View style={{ alignItems: 'center', marginBottom: 12 }}>
+        <View style={{ width: 90, height: 90, justifyContent: 'center', alignItems: 'center' }}>
+          <Image source={icon} style={{ width: 80, height: 80, borderRadius: 0 }} />
+          <Animated.View
+            style={{
+              position: 'absolute',
+              left: 0,
+              top: 0,
+              width: 80,
+              height: 80,
+              borderRadius: 20,
+              backgroundColor: 'rgba(255,255,255,0.18)',
+              opacity: 0.7,
+              transform: [
+                {
+                  translateX: glazeAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [-80, 80],
+                  }),
+                },
+                {
+                  rotateZ: glazeAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: ['-15deg', '15deg'],
+                  }),
+                },
+              ],
+            }}
+          />
+        </View>
+
+      </View>
       <Text style={styles.title}>{mode === 'signup' ? 'Create Account' : 'Welcome Back'}</Text>
       
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
@@ -193,24 +239,7 @@ export default function SignupScreen({ onSignup, onSkip }) {
         )}
       </TouchableOpacity>
       
-      <TouchableOpacity 
-        style={[styles.googleButton, loading && styles.disabledButton]} 
-        onPress={() => promptAsync()} 
-        disabled={!request || loading}
-      >
-        <Ionicons name="logo-google" size={24} color="#fff" style={{ marginRight: 8 }} />
-        <Text style={styles.googleButtonText}>
-          {mode === 'signup' ? 'Sign Up with Google' : 'Sign In with Google'}
-        </Text>
-      </TouchableOpacity>
-      
-      <TouchableOpacity 
-        style={styles.skipButton} 
-        onPress={onSkip} 
-        disabled={loading}
-      >
-        <Text style={styles.skipButtonText}>Continue as Guest</Text>
-      </TouchableOpacity>
+  {/* Google and Guest buttons removed as requested */}
       
       <TouchableOpacity 
         style={{ marginTop: 16 }} 

@@ -39,7 +39,7 @@ export default function App() {
   const [currentChatId, setCurrentChatId] = useState(chatSessions[0].id);
   const [showSplash, setShowSplash] = useState(true);
   const [fontsLoaded, setFontsLoaded] = useState(false);
-  const [currentScreen, setCurrentScreen] = useState('Jarvin');
+  const [currentScreen, setCurrentScreen] = useState('Focus');
   const [timeLogs, setTimeLogs] = useState([]);
   const [idleStart, setIdleStart] = useState(null);
   const [tasks, setTasks] = useState([]);
@@ -718,7 +718,7 @@ export default function App() {
   if (!fontsLoaded) {
     return (
       <SafeAreaView style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
-        <Text style={{ fontSize: 18, color: '#222', marginBottom: 12 }}>Loading WorkSight...</Text>
+        <Text style={{ fontSize: 18, color: '#222', marginBottom: 12 }}>Loading Timvis AI...</Text>
         {fontError && <Text style={{ color: 'red', fontSize: 16 }}>{fontError}</Text>}
       </SafeAreaView>
     );
@@ -750,7 +750,7 @@ export default function App() {
           <TouchableOpacity onPress={() => setShowJarvinChats(true)}>
             <Ionicons name="menu-outline" size={32} color="#666" />
           </TouchableOpacity>
-          <Text style={[styles.title, { fontFamily: 'SpaceGrotesk-Bold' }]}>WorkSight!</Text>
+          <Text style={[styles.title, { fontFamily: 'SpaceGrotesk-Bold' }]}>Timvis AI</Text>
           <TouchableOpacity onPress={() => setCurrentScreen('Timeline')}>
             <Ionicons name="calendar-outline" size={32} color="#666" />
           </TouchableOpacity>
@@ -768,7 +768,7 @@ export default function App() {
           }}>
             <View style={{ width: 320, backgroundColor: '#f8f8f8', borderRightWidth: 1, borderRightColor: '#eee', height: '100%', paddingTop: 40, position: 'relative' }}>
               <View style={{ padding: 18, borderBottomWidth: 1, borderBottomColor: '#eee', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#222' }}>Jarvin Chats</Text>
+                <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#222' }}>Timvis Chats</Text>
                 <TouchableOpacity onPress={() => setShowJarvinChats(false)}>
                   <Ionicons name="menu-outline" size={28} color="#666" />
                 </TouchableOpacity>
@@ -991,53 +991,97 @@ export default function App() {
             style={styles.navItem}
             onPress={() => setCurrentScreen('Focus')}
           >
-            <Ionicons
-              name="radio-button-on"
-              size={24}
-              color={currentScreen === 'Focus' ? "#000" : "#666"}
-            />
-            <Text style={currentScreen === 'Focus' ? styles.navText : styles.navTextInactive}>
-              Focus
-            </Text>
+            {currentScreen === 'Focus' ? (
+              <View style={styles.activeMenuItem}>
+                <Ionicons
+                  name="radio-button-on"
+                  size={24}
+                  color="#fff"
+                />
+                <Text style={styles.activeNavText}>Focus</Text>
+              </View>
+            ) : (
+              <View style={styles.inactiveMenuItem}>
+                <Ionicons
+                  name="radio-button-on"
+                  size={24}
+                  color="#666"
+                />
+                <Text style={styles.navTextInactive}>Focus</Text>
+              </View>
+            )}
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.navItem}
             onPress={() => setCurrentScreen('Routines')}
           >
-            <Ionicons
-              name="repeat-outline"
-              size={24}
-              color={currentScreen === 'Routines' ? "#000" : "#666"}
-            />
-            <Text style={currentScreen === 'Routines' ? styles.navText : styles.navTextInactive}>
-              Tasks & Routines
-            </Text>
+            {currentScreen === 'Routines' ? (
+              <View style={styles.activeMenuItem}>
+                <Ionicons
+                  name="repeat-outline"
+                  size={24}
+                  color="#fff"
+                />
+                <Text style={styles.activeNavText}>Duties</Text>
+              </View>
+            ) : (
+              <View style={styles.inactiveMenuItem}>
+                <Ionicons
+                  name="repeat-outline"
+                  size={24}
+                  color="#666"
+                />
+                <Text style={styles.navTextInactive}>Duties</Text>
+              </View>
+            )}
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.navItem}
             onPress={() => setCurrentScreen('Jarvin')}
           >
-            <Ionicons
-              name="sparkles-outline"
-              size={24}
-              color={currentScreen === 'Jarvin' ? "#000" : "#666"}
-            />
-            <Text style={currentScreen === 'Jarvin' ? styles.navText : styles.navTextInactive}>
-              Jarvin
-            </Text>
+            {currentScreen === 'Jarvin' ? (
+              <View style={styles.activeMenuItem}>
+                <Ionicons
+                  name="sparkles-outline"
+                  size={24}
+                  color="#fff"
+                />
+                <Text style={styles.activeNavText}>Timvis</Text>
+              </View>
+            ) : (
+              <View style={styles.inactiveMenuItem}>
+                <Ionicons
+                  name="sparkles-outline"
+                  size={24}
+                  color="#666"
+                />
+                <Text style={styles.navTextInactive}>Timvis</Text>
+              </View>
+            )}
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.navItem}
             onPress={() => setCurrentScreen('Notes')}
           >
-            <Ionicons
-              name="document-text-outline"
-              size={24}
-              color={currentScreen === 'Notes' ? "#000" : "#666"}
-            />
-            <Text style={currentScreen === 'Notes' ? styles.navText : styles.navTextInactive}>
-              Notes
-            </Text>
+            {currentScreen === 'Notes' ? (
+              <View style={styles.activeMenuItem}>
+                <Ionicons
+                  name="document-text-outline"
+                  size={24}
+                  color="#fff"
+                />
+                <Text style={styles.activeNavText}>Notes</Text>
+              </View>
+            ) : (
+              <View style={styles.inactiveMenuItem}>
+                <Ionicons
+                  name="document-text-outline"
+                  size={24}
+                  color="#666"
+                />
+                <Text style={styles.navTextInactive}>Notes</Text>
+              </View>
+            )}
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -1187,6 +1231,30 @@ const styles = StyleSheet.create({
     fontFamily: 'DMSans-Regular',
   },
   // New styles for task management
+  inactiveMenuItem: {
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    minWidth: 56,
+  },
+  activeMenuItem: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  backgroundColor: 'rgba(0,0,0,0.85)',
+  borderRadius: 24,
+  paddingHorizontal: 16,
+  paddingVertical: 24,
+  marginBottom: 2,
+  },
+  activeNavText: {
+  color: '#fff',
+    fontSize: 12,
+    fontWeight: '500',
+    fontFamily: 'DMSans-Regular',
+    marginLeft: 8,
+  },
   dropdown: {
     backgroundColor: '#fff',
     borderRadius: 10,

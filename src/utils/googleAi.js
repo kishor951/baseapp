@@ -1,9 +1,11 @@
 import Constants from 'expo-constants';
 
+const { GOOGLE_API_KEY } = Constants.expoConfig.extra;
+
 export async function getSubtasksFromGoogleAI(taskTitle, difficulty = 'medium') {
   // Use correct API key access for both classic and EAS builds
   const apiKey =
-    Constants.expoConfig?.extra?.GOOGLE_API_KEY ||
+    GOOGLE_API_KEY ||
     Constants.manifest?.extra?.GOOGLE_API_KEY;
   const endpoint = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
   const prompt = `Split this task into up to 5 action-driven, target-oriented subtasks. Each point must be a simple, direct sentence of 5-6 words, on point and on the face. ONLY return a numbered list, no introduction, no explanation, no extra text. Task: "${taskTitle}"`;

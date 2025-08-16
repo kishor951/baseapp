@@ -10,9 +10,12 @@
     "web": "expo start --web"
   },
   "dependencies": {
+    "@expo/config-plugins": "~10.1.1",
+    "@expo/prebuild-config": "~9.0.0",
     "@expo/vector-icons": "^14.1.0",
     "@react-native-community/datetimepicker": "8.4.1",
     "@supabase/supabase-js": "^2.54.0",
+    "dotenv": "^17.2.1",
     "expo": "53.0.20",
     "expo-auth-session": "^6.2.1",
     "expo-clipboard": "^7.1.5",
@@ -23,9 +26,7 @@
     "react-native": "0.79.5",
     "react-native-markdown-display": "^7.0.2",
     "react-native-svg": "15.11.2",
-    "react-native-voice": "^0.3.0",
-    "@expo/config-plugins": "~10.1.1",
-    "@expo/prebuild-config": "~9.0.0"
+    "react-native-voice": "^0.3.0"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0"

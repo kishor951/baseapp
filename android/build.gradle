@@ -35,8 +35,3 @@ allprojects {
 
 apply plugin: "expo-root-project"
 apply plugin: "com.facebook.react.rootproject"
-
-android {
-  compileSdkVersion = 35 // or the latest supported by Expo
-  // ...existing code...
-}

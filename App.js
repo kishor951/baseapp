@@ -18,6 +18,7 @@ import SplashScreen from './src/screens/SplashScreen';
 import JarvinScreen from './src/screens/JarvinScreen';
 import SignupScreen from './src/screens/SignupScreen';
 import NotesScreen from './src/screens/NotesScreen';
+import Header from './src/components/Header';
 
 export default function App() {
   // Search bar state for Jarvin Chats
@@ -746,15 +747,7 @@ export default function App() {
       <SafeAreaView style={styles.container}>
         <StatusBar style="auto" />
         {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => setShowJarvinChats(true)}>
-            <Ionicons name="menu-outline" size={32} color="#666" />
-          </TouchableOpacity>
-          <Text style={[styles.title, { fontFamily: 'SpaceGrotesk-Bold' }]}>Timvis AI</Text>
-          <TouchableOpacity onPress={() => setCurrentScreen('Timeline')}>
-            <Ionicons name="calendar-outline" size={32} color="#666" />
-          </TouchableOpacity>
-        </View>
+        <Header setShowJarvinChats={setShowJarvinChats} setCurrentScreen={setCurrentScreen} />
 
         {/* Jarvin Chats Modal - now shows chat sessions */}
         <Modal visible={showJarvinChats} transparent animationType="none">

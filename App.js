@@ -19,6 +19,7 @@ import JarvinScreen from './src/screens/JarvinScreen';
 import SignupScreen from './src/screens/SignupScreen';
 import NotesScreen from './src/screens/NotesScreen';
 import Header from './src/components/Header';
+import BottomNavigation from './src/navigation/BottomNavigation';
 
 export default function App() {
   // Search bar state for Jarvin Chats
@@ -978,105 +979,7 @@ export default function App() {
           </View>
         </Modal>
 
-        {/* Bottom Navigation */}
-        <View style={styles.bottomNav}>
-          <TouchableOpacity
-            style={styles.navItem}
-            onPress={() => setCurrentScreen('Focus')}
-          >
-            {currentScreen === 'Focus' ? (
-              <View style={styles.activeMenuItem}>
-                <Ionicons
-                  name="radio-button-on"
-                  size={24}
-                  color="#fff"
-                />
-                <Text style={styles.activeNavText}>Focus</Text>
-              </View>
-            ) : (
-              <View style={styles.inactiveMenuItem}>
-                <Ionicons
-                  name="radio-button-on"
-                  size={24}
-                  color="#666"
-                />
-                <Text style={styles.navTextInactive}>Focus</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.navItem}
-            onPress={() => setCurrentScreen('Routines')}
-          >
-            {currentScreen === 'Routines' ? (
-              <View style={styles.activeMenuItem}>
-                <Ionicons
-                  name="repeat-outline"
-                  size={24}
-                  color="#fff"
-                />
-                <Text style={styles.activeNavText}>Duties</Text>
-              </View>
-            ) : (
-              <View style={styles.inactiveMenuItem}>
-                <Ionicons
-                  name="repeat-outline"
-                  size={24}
-                  color="#666"
-                />
-                <Text style={styles.navTextInactive}>Duties</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.navItem}
-            onPress={() => setCurrentScreen('Jarvin')}
-          >
-            {currentScreen === 'Jarvin' ? (
-              <View style={styles.activeMenuItem}>
-                <Ionicons
-                  name="sparkles-outline"
-                  size={24}
-                  color="#fff"
-                />
-                <Text style={styles.activeNavText}>Timvis</Text>
-              </View>
-            ) : (
-              <View style={styles.inactiveMenuItem}>
-                <Ionicons
-                  name="sparkles-outline"
-                  size={24}
-                  color="#666"
-                />
-                <Text style={styles.navTextInactive}>Timvis</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.navItem}
-            onPress={() => setCurrentScreen('Notes')}
-          >
-            {currentScreen === 'Notes' ? (
-              <View style={styles.activeMenuItem}>
-                <Ionicons
-                  name="document-text-outline"
-                  size={24}
-                  color="#fff"
-                />
-                <Text style={styles.activeNavText}>Notes</Text>
-              </View>
-            ) : (
-              <View style={styles.inactiveMenuItem}>
-                <Ionicons
-                  name="document-text-outline"
-                  size={24}
-                  color="#666"
-                />
-                <Text style={styles.navTextInactive}>Notes</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-        </View>
+        <BottomNavigation currentScreen={currentScreen} setCurrentScreen={setCurrentScreen} />
       </SafeAreaView>
     </TimeLogProvider>
   );

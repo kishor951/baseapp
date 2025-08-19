@@ -20,6 +20,7 @@ import SignupScreen from './src/screens/SignupScreen';
 import NotesScreen from './src/screens/NotesScreen';
 import Header from './src/components/Header';
 import BottomNavigation from './src/navigation/BottomNavigation';
+import TimerCircle from './src/components/TimerCircle';
 
 export default function App() {
   // Search bar state for Jarvin Chats
@@ -33,7 +34,7 @@ export default function App() {
         {
           role: 'SYSTEM',
           text:
-            `You are Jarvin, a concise, helpful productivity assistant. \nIf the user asks to create tasks (single or multiple), always return a JSON array of objects, each with: title, due_at (ISO 8601, optional), recurrence_rule (RRULE, optional), priority (low|medium|high, optional). \nIf the user asks for a routine, return a JSON object with: name, steps[], timeblocks[]. \nNever output markdown unless requested. Never output plain text for task creation. \nIf the user message contains multiple tasks (comma, list, or any format), extract all task titles and return as an array. \nExample: "create tasks: Buy milk, Walk dog, Call mom" → [{"title": "Buy milk"}, {"title": "Walk dog"}, {"title": "Call mom"}].`
+            `You are Timvis, a concise, helpful productivity assistant. \nIf the user asks to create tasks (single or multiple), always return a JSON array of objects, each with: title, due_at (ISO 8601, optional), recurrence_rule (RRULE, optional), priority (low|medium|high, optional). \nIf the user asks for a routine, return a JSON object with: name, steps[], timeblocks[]. \nNever output markdown unless requested. Never output plain text for task creation. \nIf the user message contains multiple tasks (comma, list, or any format), extract all task titles and return as an array. \nExample: "create tasks: Buy milk, Walk dog, Call mom" → [{"title": "Buy milk"}, {"title": "Walk dog"}, {"title": "Call mom"}].`
         }
       ]
     }

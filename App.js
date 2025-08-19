@@ -765,7 +765,7 @@ export default function App() {
               <View style={{ padding: 18, borderBottomWidth: 1, borderBottomColor: '#eee', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                 <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#222' }}>Timvis Chats</Text>
                 <TouchableOpacity onPress={() => setShowJarvinChats(false)}>
-                  <Ionicons name="menu-outline" size={28} color="#666" />
+                  <Ionicons name="chevron-back-outline" size={28} color="#666" />
                 </TouchableOpacity>
               </View>
               {/* Search bar for chats */}

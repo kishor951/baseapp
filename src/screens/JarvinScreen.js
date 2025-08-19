@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, SafeAreaView } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, SafeAreaView, Animated } from 'react-native';
 import { PermissionsAndroid } from 'react-native';
 import Voice from 'react-native-voice';
 import * as Clipboard from 'expo-clipboard';
@@ -58,6 +58,8 @@ export default function JarvinScreen({
   user
 }) {
   const [pendingRoutine, setPendingRoutine] = useState(null);
+  const [toast, setToast] = useState({ visible: false, message: '' });
+  const toastOpacity = React.useRef(new Animated.Value(0)).current;
   const [input, setInput] = useState('');
   const [inputHeight, setInputHeight] = useState(44);
   const [isListening, setIsListening] = useState(false);
@@ -134,6 +136,24 @@ export default function JarvinScreen({
   // Removed localStorage saving effect
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  const showToast = React.useCallback((message) => {
+    setToast({ visible: true, message });
+    Animated.sequence([
+      Animated.timing(toastOpacity, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.delay(2000),
+      Animated.timing(toastOpacity, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+    ]).start(() => setToast({ visible: false, message: '' }));
+  }, [toastOpacity]);
+
   React.useEffect(() => {
     console.log('TimvisScreen mounted');
     if (!GOOGLE_API_KEY) {
@@ -568,6 +588,24 @@ Remember: Each response should feel like a continuation of our ongoing conversat
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
+      {/* Toast Notification */}
+      {toast.visible && (
+        <Animated.View style={{
+          position: 'absolute',
+          top: Platform.OS === 'ios' ? 50 : 20,
+          left: 20,
+          right: 20,
+          backgroundColor: 'rgba(0,0,0,0.8)',
+          borderRadius: 8,
+          padding: 12,
+          zIndex: 1000,
+          opacity: toastOpacity,
+        }}>
+          <Text style={{ color: '#fff', textAlign: 'center', fontSize: 14 }}>
+            {toast.message}
+          </Text>
+        </Animated.View>
+      )}
       {/* Main Chat Area */}
       <View style={{ flex: 1 }}>
         <KeyboardAvoidingView
@@ -594,7 +632,10 @@ Remember: Each response should feel like a continuation of our ongoing conversat
                   {msg.role === 'ASSISTANT' && (
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
                       <TouchableOpacity
-                        onPress={() => Clipboard.setStringAsync(msg.text)}
+                        onPress={async () => {
+                          await Clipboard.setStringAsync(msg.text);
+                          showToast('Copied to clipboard');
+                        }}
                         style={{ flexDirection: 'row', alignItems: 'center', marginRight: 12 }}
                       >
                         <Ionicons name="copy" size={18} color="#666" />
@@ -604,15 +645,17 @@ Remember: Each response should feel like a continuation of our ongoing conversat
                           if (addNote && user && !user.skipped) {
                             // Save to database as library note (is_idea: false)
                             await addNote({ text: msg.text }, false);
+                            showToast('Saved to library');
                           } else if (setNotes) {
                             // Fallback to local state for guests
                             setNotes(prev => [...prev, { id: Date.now(), text: msg.text, created_at: new Date().toISOString(), from: 'Timvis', is_idea: false }]);
+                            showToast('Saved to library');
                           }
                         }}
                         style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#e0e0e0', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 2 }}
                       >
-                        <Ionicons name="library" size={16} color="#007AFF" style={{ marginRight: 4 }} />
-                        <Text style={{ fontSize: 12, color: '#007AFF', fontWeight: '500' }}>Save to Library</Text>
+                        <Ionicons name="bookmark-outline" size={18} color="#000000ff" style={{ marginRight: 4 }} />
+                        <Text style={{ fontSize: 12, color: '#000000ff', fontWeight: '500' }}>Save to Library</Text>
                       </TouchableOpacity>
                     </View>
                   )}

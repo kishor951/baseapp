@@ -19,6 +19,7 @@ export default function RoutineScreen({
   routines = [], // Add routines prop from App.js
   setRoutines = () => {}, // Add setRoutines prop from App.js
   loadRoutines = () => {}, // Add loadRoutines prop from App.js
+  completedTasks = [], // Add completedTasks prop for completed tasks
 }) {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -34,6 +35,7 @@ export default function RoutineScreen({
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [durationMode, setDurationMode] = useState('preset');
   const [customDuration, setCustomDuration] = useState('');
+  const [showCompletedTasksModal, setShowCompletedTasksModal] = useState(false);
 
   // Load routines from database when component mounts
   useEffect(() => {
@@ -213,7 +215,7 @@ export default function RoutineScreen({
         <>
           <View style={{ flex: 1, marginHorizontal: 20, marginTop: 20 }}>
             <TaskList
-              tasks={tasks}
+              tasks={tasks.filter(task => !task.completed)}
               toggleTaskCompletion={toggleTaskCompletion}
               deleteTask={deleteTask}
               openEditTaskModal={openEditTaskModal}
@@ -241,9 +243,14 @@ export default function RoutineScreen({
         </View>
       </Modal>
           </View>
-          <TouchableOpacity style={styles.addButton} onPress={() => setShowTaskModal(true)}>
-            <Text style={styles.addButtonText}>Create new Task</Text>
-          </TouchableOpacity>
+          <View style={styles.floatingButtonContainer}>
+            <TouchableOpacity style={styles.circleButton} onPress={() => setShowTaskModal(true)}>
+              <Ionicons name="add" size={30} color="#fff" />
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.circleButton, { backgroundColor: '#333', marginTop: 12 }]} onPress={() => setShowCompletedTasksModal(true)}>
+              <Ionicons name="checkmark-outline" size={30} color="#fff" />
+            </TouchableOpacity>
+          </View>
         </>
       ) : (
         <>
@@ -364,6 +371,49 @@ export default function RoutineScreen({
                 ) : (
                   <Text style={styles.modalButtonTextPrimary}>Save</Text>
                 )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal for Completed Tasks */}
+      <Modal visible={showCompletedTasksModal} transparent animationType="slide">
+        <View style={styles.modalContainer}>
+          <View style={[styles.modalContent, { width: '90%', maxHeight: '80%' }]}>
+            <Text style={styles.modalTitle}>Completed Tasks</Text>
+            <FlatList
+              data={tasks.filter(task => task.completed)}
+              keyExtractor={(item, index) => item.id?.toString() || index.toString()}
+              renderItem={({ item }) => (
+                <View style={styles.completedTaskItem}>
+                  <TouchableOpacity 
+                    style={styles.radioButton}
+                    onPress={() => toggleTaskCompletion(item.id)}
+                  >
+                    <View style={styles.radioButtonInner}>
+                      <Ionicons name="checkmark" size={16} color="#fff" />
+                    </View>
+                  </TouchableOpacity>
+                  <Text style={styles.completedTaskText}>{item.title}</Text>
+                  <Text style={styles.completedTaskDate}>
+                    {item.completed_at ? new Date(item.completed_at).toLocaleDateString() : 'Completed'}
+                  </Text>
+                </View>
+              )}
+              style={{ maxHeight: '80%' }}
+              ListEmptyComponent={
+                <View style={styles.emptyContainer}>
+                  <Text style={styles.emptyText}>No completed tasks yet</Text>
+                </View>
+              }
+            />
+            <View style={styles.completedTasksModalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonPrimary, { flex: 0, paddingHorizontal: 40 }]}
+                onPress={() => setShowCompletedTasksModal(false)}
+              >
+                <Text style={styles.modalButtonTextPrimary}>Close</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -540,5 +590,73 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#999',
     marginTop: 4,
+  },
+  floatingButtonContainer: {
+    position: 'absolute',
+    right: 20,
+    bottom: 30,
+    alignItems: 'center',
+  },
+  circleButton: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#000',
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+  },
+  completedTaskItem: {
+    backgroundColor: '#f8f8f8',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 8,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  completedTaskText: {
+    fontSize: 16,
+    color: '#333',
+    flex: 1,
+    marginRight: 8,
+  },
+  completedTaskDate: {
+    fontSize: 12,
+    color: '#666',
+  },
+  radioButton: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#000',
+    marginRight: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#000',
+  },
+  radioButtonInner: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#000',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  completedTasksModalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: 20,
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
   },
 });

@@ -49,7 +49,8 @@ function formatAMPM(date) {
 
 const HALF_HOURS = Array.from({ length: 48 }, (_, i) => i * 30);
 const TIMELINE_HEIGHT = 1920; // px for 24 hours, 40px per 30 min
-const pxPerMinute = TIMELINE_HEIGHT / (24 * 60);
+const timelineHeight = 24 * 160; // Dynamically calculate based on 24 hours and 160px per hour
+const pxPerMinute = timelineHeight / (24 * 60); // Ensure pxPerMinute matches the grid height
 
 function getBlockPosition(start, end) {
   // start/end: 'HH:MM AM/PM'
@@ -109,7 +110,7 @@ export default function TimelineScreen({ routines = [], idleStart, userId, timeL
       const now = new Date();
       if (isToday) {
         const mins = now.getHours() * 60 + now.getMinutes();
-        setNowY(mins * pxPerMinute);
+        setNowY(mins * (timelineHeight / (24 * 60))); // Corrected calculation with dynamic timelineHeight
         setCurrentTimeLabel(`${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`);
       } else {
         setNowY(null);
@@ -119,7 +120,7 @@ export default function TimelineScreen({ routines = [], idleStart, userId, timeL
     updateNowYAndLabel();
     const interval = setInterval(updateNowYAndLabel, 1000); // update every second
     return () => clearInterval(interval);
-  }, [selectedDate, isToday]);
+  }, [selectedDate, isToday, timelineHeight]);
 
   // Navigation handlers
   const goToPrevDay = () => {
@@ -414,47 +415,54 @@ export default function TimelineScreen({ routines = [], idleStart, userId, timeL
         return '#333';
     }
   }
-  const timelineHeight = 400;
+  useEffect(() => {
+    // Removed console.log statements for debugging timelineHeight, pxPerMinute, and routine blocks.
+  }, []);
   // nowY is managed by useState and useEffect for live current time line
   return (
     <View style={styles.container}>
-      {/* Header with date navigation and month dropdown */}
-      <View style={styles.timelineHeader}>
-        <TouchableOpacity onPress={goToPrevDay}>
-          <Ionicons name="chevron-back-outline" size={28} color="#42281A" />
-        </TouchableOpacity>
-        <View style={{ alignItems: 'center', flex: 1 }}>
-          <Text style={styles.timelineTitle}>Timeline</Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Text style={{ fontSize: 16, fontWeight: '500', marginTop: 2 }}>
-              {dayInfo.day}, {dayInfo.date} {dayInfo.month} {dayInfo.year}
-            </Text>
-            {isToday && (
-              <View style={{ 
-                marginLeft: 8, 
-                backgroundColor: '#10B981', 
-                borderRadius: 8, 
-                paddingHorizontal: 6, 
-                paddingVertical: 2 
-              }}>
-                <Text style={{ color: '#fff', fontSize: 12, fontWeight: 'bold' }}>TODAY</Text>
-              </View>
-            )}
-          </View>
-        </View>
+      {/* Header with navigation and title */}
+      <View style={[styles.timelineHeader, { justifyContent: 'center' }]}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <TouchableOpacity onPress={refreshTimeLogs} style={{ marginRight: 8 }}>
-            <Ionicons name="refresh" size={24} color="#42281A" />
-          </TouchableOpacity>
+          <Text style={styles.timelineTitle}>Timeline</Text>
           <TouchableOpacity style={styles.monthSelector} onPress={() => setMonthModalVisible(true)}>
             <Text style={styles.monthSelectorText}>{dayInfo.month}</Text>
             <Ionicons name="chevron-down-outline" size={20} color="#fff" />
           </TouchableOpacity>
-          <TouchableOpacity onPress={goToNextDay}>
-            <Ionicons name="chevron-forward-outline" size={28} color="#42281A" />
-          </TouchableOpacity>
         </View>
       </View>
+      
+      {/* Date display with navigation */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 10, marginBottom: 20, paddingHorizontal: 20 }}>
+        {/* Previous Day Button */}
+        <TouchableOpacity onPress={goToPrevDay}>
+          <Ionicons name="chevron-back-outline" size={28} color="#42281A" />
+        </TouchableOpacity>
+
+        {/* Today Display */}
+        <View style={{ alignItems: 'center' }}>
+          <Text style={{ fontSize: 18, fontWeight: '600', color: '#42281A' }}>
+            {dayInfo.day}, {dayInfo.date} {dayInfo.month} {dayInfo.year}
+          </Text>
+          {isToday && (
+            <View style={{ 
+              marginTop: 4, 
+              backgroundColor: '#10B981', 
+              borderRadius: 8, 
+              paddingHorizontal: 6, 
+              paddingVertical: 2 
+            }}>
+              <Text style={{ color: '#fff', fontSize: 12, fontWeight: 'bold' }}>TODAY</Text>
+            </View>
+          )}
+        </View>
+
+        {/* Next Day Button */}
+        <TouchableOpacity onPress={goToNextDay}>
+          <Ionicons name="chevron-forward-outline" size={28} color="#42281A" />
+        </TouchableOpacity>
+      </View>
+
       {/* Month picker modal */}
       <Modal visible={monthModalVisible} transparent animationType="fade">
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.2)' }}>
@@ -480,242 +488,68 @@ export default function TimelineScreen({ routines = [], idleStart, userId, timeL
           <Text style={activeTab === 'Summary' ? styles.activeTabText : styles.tabText}>Summary</Text>
         </TouchableOpacity>
       </View>
-      {/* Timeline Blocks for current day only */}
-      {activeTab === 'Blocks' && (
-        <View style={{ flex: 1, marginTop: 20 }}>
-          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ minHeight: TIMELINE_HEIGHT + 40, paddingBottom: 40 }}>
-            {/* --- Dynamic Time Scale and Segments --- */}
-            {(() => {
-              // 1. Gather all unique split points (in minutes): 0, 30, 60, ... + all block start/end times
-              let splitPoints = new Set([0, 24 * 60]);
-              blocks.forEach(b => {
-                splitPoints.add(parseTimeString(b.start));
-                splitPoints.add(parseTimeString(b.end));
-              });
-              for (let m = 0; m < 24 * 60; m += 30) {
-                splitPoints.add(m);
-              }
-              const splitArr = Array.from(splitPoints).sort((a, b) => a - b);
-              // 2. Build segments
-              const segments = [];
-              for (let i = 0; i < splitArr.length - 1; i++) {
-                segments.push({ start: splitArr[i], end: splitArr[i + 1] });
-              }
-              // 3. Render
-              return (
-                <View style={{ flexDirection: 'row', position: 'relative', minHeight: TIMELINE_HEIGHT, backgroundColor: '#FFF6F5', borderRadius: 16, overflow: 'hidden', marginHorizontal: 20 }}>
-                  {/* Time scale - dynamic divisions */}
-                  <View style={{ width: 60, paddingVertical: 8 }}>
-                    {segments.map(seg => {
-                      const h = Math.floor(seg.start / 60);
-                      const m = seg.start % 60;
-                      const segHeight = (seg.end - seg.start) * pxPerMinute;
-                      return (
-                        <View key={seg.start} style={{ height: segHeight, justifyContent: 'flex-start' }}>
-                          <Text style={{ color: '#42281A', fontSize: 13 }}>{h.toString().padStart(2, '0')}:{m.toString().padStart(2, '0')}</Text>
-                        </View>
-                      );
-                    })}
-                  </View>
-                  {/* Blocks overlay + live time line */}
-                  <View style={{ flex: 1, position: 'relative' }}>
-                    {/* Live current time line with label */}
-                    {nowY !== null && (
-                      <>
-                        <View style={{
-                          position: 'absolute',
-                          left: 0,
-                          right: 0,
-                          top: nowY,
-                          height: 2,
-                          backgroundColor: '#FF6F61',
-                          zIndex: 10,
-                        }} />
-                        <View style={{
-                          position: 'absolute',
-                          right: 0,
-                          top: nowY - 12,
-                          backgroundColor: '#FF6F61',
-                          borderRadius: 6,
-                          paddingHorizontal: 8,
-                          paddingVertical: 2,
-                          zIndex: 11,
-                        }}>
-                          <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 13 }}>{currentTimeLabel}</Text>
-                        </View>
-                      </>
-                    )}
-                    {/* Render blocks in each segment */}
-                    {/* Enforce a minimum gap between blocks for even appearance */}
-                    {(() => {
-                      // Stack blocks vertically, never overlap, with minimum gap
-                      const MIN_BLOCK_HEIGHT = 40; // px
-                      const MIN_BLOCK_GAP = 8; // px
-                      let currentY = 0;
-                      return blocks.map((block, idx) => {
-                        const startMins = parseTimeString(block.start);
-                        const endMins = parseTimeString(block.end);
-                        let blockHeight = Math.max((endMins - startMins) * pxPerMinute, MIN_BLOCK_HEIGHT);
-                        // Always stack blocks, never overlap
-                        let top = currentY;
-                        let durationMins = 0;
-                        if (block.type === 'routine') {
-                          const originalRoutine = routines.find(r => r.id === block.id || block.id.startsWith(r.id + '-part'));
-                          if (originalRoutine && originalRoutine.duration) {
-                            if (block.isOvernightPart === 'start') {
-                              const startMins = parseTimeString(block.start);
-                              const endOfDayMins = 23 * 60 + 59;
-                              durationMins = endOfDayMins - startMins + 1;
-                            } else if (block.isOvernightPart === 'end') {
-                              const endMins = parseTimeString(block.end);
-                              durationMins = endMins;
-                            } else {
-                              durationMins = parseInt(originalRoutine.duration);
-                            }
-                          } else if (block.end && block.start) {
-                            durationMins = parseTimeString(block.end) - parseTimeString(block.start);
-                          }
-                        } else if (block.end && block.start) {
-                          durationMins = parseTimeString(block.end) - parseTimeString(block.start);
-                        }
-                        const smallBlock = blockHeight < 48;
-                        const blockStyle = getBlockStyle(block.type, block.isOvernightPart);
-                        const textColor = getTextColor(block.type);
-                        const displayTitle = block.isOvernightPart 
-                          ? `${block.title} ${block.isOvernightPart === 'start' ? '(Night)' : '(Morning)'}`
-                          : block.title;
-                        // Update currentY for next block
-                        currentY = top + blockHeight + MIN_BLOCK_GAP;
-                        return (
-                          <View key={block.id} style={{
-                            position: 'absolute',
-                            left: 8,
-                            right: 8,
-                            top,
-                            height: blockHeight,
-                            borderRadius: 8,
-                            padding: 6,
-                            ...blockStyle,
-                          }}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                              <Text style={{ 
-                                fontSize: smallBlock ? 12 : 15, 
-                                fontWeight: 'bold',
-                                color: textColor,
-                              }}>
-                                {displayTitle}
-                              </Text>
-                              <View>
-                                <Text style={{ 
-                                  fontWeight: 'bold', 
-                                  fontSize: smallBlock ? 10 : 13,
-                                  color: textColor,
-                                }}>
-                                  {durationMins} min
-                                </Text>
-                              </View>
-                            </View>
-                            {block.description && (
-                              <Text style={{ 
-                                fontSize: 12, 
-                                marginTop: 2,
-                                color: textColor,
-                                opacity: 0.9,
-                              }}>
-                                {block.description}
-                              </Text>
-                            )}
-                            <Text style={{ 
-                              fontSize: 11, 
-                              marginTop: 2,
-                              color: textColor,
-                              opacity: 0.8,
-                            }}>
-                              {block.start} - {block.end}
-                            </Text>
-                          </View>
-                        );
-                      });
-                    })()}
-                  </View>
-                </View>
-              );
-            })()}
-          </ScrollView>
-        </View>
-      )}
-      {/* Summary Tab */}
-      {activeTab === 'Summary' && (
-        <View style={{ flex: 1, marginTop: 20, marginHorizontal: 20 }}>
-          <View style={styles.summaryCard}>
-            <Text style={styles.summaryTitle}>Daily Summary</Text>
-            <Text style={styles.summaryDate}>{dayInfo.day}, {dayInfo.date} {dayInfo.month} {dayInfo.year}</Text>
-            
-            <View style={styles.summaryStats}>
-              <View style={styles.statItem}>
-                <View style={[styles.statIndicator, { backgroundColor: '#10B981' }]} />
-                <Text style={styles.statLabel}>Focus Sessions</Text>
-                <Text style={styles.statValue}>
-                  {focusSessions.length} sessions ({Math.round(focusSessions.reduce((total, session) => {
-                    return total + parseTimeString(session.end) - parseTimeString(session.start);
-                  }, 0))} min)
-                </Text>
-              </View>
-              
-              <View style={styles.statItem}>
-                <View style={[styles.statIndicator, { backgroundColor: '#3B82F6' }]} />
-                <Text style={styles.statLabel}>Routines</Text>
-                <Text style={styles.statValue}>
-                  {dailyRoutines.length} routines ({dailyRoutines.reduce((total, routine) => {
-                    const originalRoutine = routines.find(r => r.id === routine.id);
-                    if (originalRoutine && originalRoutine.duration) {
-                      return total + parseInt(originalRoutine.duration);
-                    } else if (routine.end && routine.start) {
-                      return total + (parseTimeString(routine.end) - parseTimeString(routine.start));
-                    }
-                    return total;
-                  }, 0)} min)
-                </Text>
-              </View>
-              
-              <View style={styles.statItem}>
-                <View style={[styles.statIndicator, { backgroundColor: '#9CA3AF' }]} />
-                <Text style={styles.statLabel}>Idle Time</Text>
-                <Text style={styles.statValue}>
-                  {blocks.filter(b => b.type === 'idle').length} periods ({Math.round(blocks.filter(b => b.type === 'idle').reduce((total, idle) => {
-                    return total + parseTimeString(idle.end) - parseTimeString(idle.start);
-                  }, 0))} min)
-                </Text>
-              </View>
-            </View>
 
-            {/* Activity breakdown */}
-            <View style={styles.activityBreakdown}>
-              <Text style={styles.breakdownTitle}>Activity Breakdown</Text>
-              {blocks.length > 0 ? blocks.map((block, index) => {
-                let blockDuration = 0;
-                if (block.end && block.start) {
-                  blockDuration = Math.max(0, parseTimeString(block.end) - parseTimeString(block.start));
-                }
-                
-                return (
-                  <View key={block.id} style={styles.activityItem}>
-                    <View style={[styles.activityIndicator, getBlockStyle(block.type)]} />
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.activityTitle}>{block.title}</Text>
-                      <Text style={styles.activityTime}>
-                        {block.start} - {block.end} ({blockDuration} min)
-                      </Text>
-                    </View>
-                  </View>
-                );
-              }) : (
-                <Text style={styles.noActivities}>No activities scheduled for this day</Text>
-              )}
+
+      {/* Timeline grid with current time marker */}
+      <ScrollView style={{ flex: 1, marginHorizontal: 20 }} contentContainerStyle={{ paddingBottom: 20 }}>
+        {/* Timeline grid */}
+        {Array.from({ length: 24 }).map((_, hour) => (
+          <View key={hour} style={{ height: 160, borderBottomWidth: 1, borderBottomColor: '#ddd', flexDirection: 'row', alignItems: 'flex-start' }}>
+            {/* Hour label */}
+            <Text style={{ width: 50, textAlign: 'right', marginRight: 10, color: '#666', fontSize: 12 }}>
+              {hour.toString().padStart(2, '0')}:00
+            </Text>
+            <View style={{ flex: 1 }}>
+              {Array.from({ length: 4 }).map((_, quarter) => (
+                <View
+                  key={quarter}
+                  style={{
+                    height: 40,
+                    borderBottomWidth: quarter < 3 ? 0.5 : 0,
+                    borderBottomColor: '#eee',
+                  }}
+                />
+              ))}
             </View>
           </View>
-        </View>
-      )}
+        ))}
+
+        {/* Current time marker */}
+        {isToday && nowY !== null && (
+          <View style={{ position: 'absolute', top: nowY, left: 0, right: 0, flexDirection: 'row', alignItems: 'center' }}>
+            <View style={{ height: 1, backgroundColor: '#FF0000', flex: 1 }} />
+            <Text style={{ marginLeft: 8, color: '#FF0000', fontWeight: 'bold' }}>{currentTimeLabel}</Text>
+          </View>
+        )}
+
+        {/* Routine blocks */}
+        {dailyRoutines.map((routine) => {
+          const { top, height } = getBlockPosition(routine.start, routine.end);
+          const blockStyle = getBlockStyle(routine.type, routine.isOvernightPart);
+          return (
+            <View
+              key={routine.id}
+              style={{
+                position: 'absolute',
+                top,
+                left: 60, // Offset to avoid overlapping with hour labels
+                right: 20,
+                height,
+                borderRadius: 8,
+                padding: 8,
+                ...blockStyle,
+              }}
+            >
+              <Text style={{ color: getTextColor(routine.type), fontWeight: 'bold' }}>
+                {routine.title}
+              </Text>
+              <Text style={{ color: getTextColor(routine.type), fontSize: 12 }}>
+                {routine.start} - {routine.end}
+              </Text>
+            </View>
+          );
+        })}
+      </ScrollView>
     </View>
   );
 }
@@ -755,7 +589,7 @@ const styles = StyleSheet.create({
   tabRow: {
     flexDirection: 'row',
     marginHorizontal: 20,
-    marginTop: 20,
+    marginTop: 0,
     marginBottom: 10,
   },
   tab: {

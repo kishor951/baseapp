@@ -65,6 +65,9 @@ export default function App() {
     return null;
   };
 
+  // Current user's ID (derived helper) — keep as a simple const so JSX can reference it safely
+  const userId = getUserId();
+
   // Load tasks and chat sessions from database when user logs in
   useEffect(() => {
     if (user && !user.skipped) {
@@ -135,9 +138,7 @@ export default function App() {
 
   const loadTasks = async () => {
     const userId = getUserId();
-    console.log('Loading tasks for user ID:', userId);
     if (!userId) {
-      console.log('No user ID found, skipping task load');
       return;
     }
     
@@ -148,7 +149,6 @@ export default function App() {
         console.error('Error loading tasks:', error);
         Alert.alert('Error', 'Failed to load tasks');
       } else {
-        console.log('Loaded tasks:', data);
         setTasks(data || []);
       }
     } catch (err) {
@@ -877,6 +877,7 @@ export default function App() {
           <TimelineScreen
             idleStart={idleStart}
             routines={routines}
+            userId={userId}
           />
         )}
 

@@ -73,19 +73,83 @@ export default function TimelineScreen({ routines = [], idleStart, userId, timeL
   const [nowY, setNowY] = useState(0);
   const [currentTimeLabel, setCurrentTimeLabel] = useState('');
 
+  console.log('TimelineScreen render - timeLogs:', timeLogs, 'selectedDate:', selectedDate.toDateString(), 'userId:', userId);
+
   // Fetch time logs from DB if not present
   const refreshTimeLogs = () => {
+    console.log('refreshTimeLogs called with userId:', userId);
     if (userId) {
       fetchTimeLogs(userId).then(({ data, error }) => {
+        console.log('refreshTimeLogs result:', data, error);
         if (data) setTimeLogs(data);
       });
     }
   };
   useEffect(() => {
+    console.log('Initial fetch useEffect - timeLogs length:', timeLogs?.length, 'userId:', userId);
     if ((!timeLogs || timeLogs.length === 0) && userId) {
       refreshTimeLogs();
     }
   }, [userId]);
+
+  // Fetch time logs for the selected date
+  useEffect(() => {
+    console.log('TimelineScreen useEffect triggered - userId:', userId, 'selectedDate:', selectedDate);
+    if (userId && selectedDate) {
+      const startDate = new Date(selectedDate);
+      startDate.setHours(0, 0, 0, 0);
+      const endDate = new Date(selectedDate);
+      endDate.setHours(23, 59, 59, 999);
+
+      console.log('About to call fetchTimeLogs with userId:', userId);
+      console.log('Fetching time logs for date range:', startDate.toISOString(), endDate.toISOString());
+
+      fetchTimeLogs(userId, startDate.toISOString(), endDate.toISOString()).then(({ data, error }) => {
+        if (data && data.length > 0) {
+          console.log('Fetched time logs:', data);
+          const processedLogs = data.map(log => {
+            const startDate = log.started_at ? new Date(log.started_at) : null;
+            const endDate = log.ended_at ? new Date(log.ended_at) : null;
+            if (!startDate || !endDate) return null;
+
+            return {
+              id: log.id,
+              title: log.activity_type || 'Focus Session',
+              start: formatAMPM(startDate),
+              end: formatAMPM(endDate),
+              type: 'focus',
+              description: log.notes || '',
+            };
+          }).filter(Boolean);
+
+          console.log('Processed time logs for timeline:', processedLogs);
+          setTimeLogs(processedLogs);
+        } else {
+          console.log('No time logs found, adding test log');
+          // Add a test log for today only
+          const isToday = selectedDate.toDateString() === new Date().toDateString();
+          if (isToday) {
+            const testLog = {
+              id: 'test-1',
+              title: 'Test Focus Session',
+              start: '10:00 AM',
+              end: '11:30 AM',
+              type: 'focus',
+              description: 'Test time log for debugging'
+            };
+            setTimeLogs([testLog]);
+          } else {
+            setTimeLogs([]);
+          }
+        }
+        
+        if (error) {
+          console.error('Error fetching time logs:', error);
+          setTimeLogs([]);
+        }
+      });
+    }
+  }, [userId, selectedDate]);
 
   // Helper functions - defined early to avoid hoisting issues
   const isSameDay = (d1, d2) => d1.getDate() === d2.getDate() && d1.getMonth() === d2.getMonth() && d1.getFullYear() === d2.getFullYear();
@@ -146,32 +210,9 @@ export default function TimelineScreen({ routines = [], idleStart, userId, timeL
     setMonthModalVisible(false);
   };
   
-  // Get focus sessions (time logs) for selected day
-  const focusSessions = (timeLogs || []).filter(log => {
-    // Prefer started_at/ended_at from DB, fallback to start/end
-    const startDate = log.started_at ? new Date(log.started_at) : (log.start ? new Date(log.start) : null);
-    return startDate && isSameDay(startDate, selectedDate);
-  }).map(log => {
-    // Use started_at/ended_at for DB logs, fallback to start/end for local logs
-    const startDate = log.started_at ? new Date(log.started_at) : (log.start ? new Date(log.start) : null);
-    const endDate = log.ended_at ? new Date(log.ended_at) : (log.end ? new Date(log.end) : null);
-    // If either is missing, skip this block
-    if (!startDate || !endDate) return null;
-    // Title: prefer log.title, then tasks.title, then notes, then fallback
-    let title = log.title;
-    if (!title && log.tasks && log.tasks.title) title = log.tasks.title;
-    if (!title && log.notes) title = log.notes;
-    if (!title) title = 'Focus Session';
-    return {
-      id: log.id,
-      title,
-      start: formatAMPM(startDate),
-      end: formatAMPM(endDate),
-      type: 'focus',
-      description: log.description || log.notes || '',
-    };
-  }).filter(Boolean);
-
+  // Time logs are already processed in the useEffect above
+  // No additional processing needed here since they're filtered by date in the fetch
+  
   // Get routines for selected day (handle overnight routines properly)
   const dailyRoutines = [];
   
@@ -235,7 +276,7 @@ export default function TimelineScreen({ routines = [], idleStart, userId, timeL
 
 
   // Combine all blocks and sort by start time
-  let activityBlocks = [...focusSessions, ...dailyRoutines];
+  let activityBlocks = [...timeLogs, ...dailyRoutines];
   activityBlocks = activityBlocks.sort((a, b) => parseTimeString(a.start) - parseTimeString(b.start));
 
   // Build a new blocks array with non-overlapping idle blocks
@@ -548,6 +589,40 @@ export default function TimelineScreen({ routines = [], idleStart, userId, timeL
               </Text>
             </View>
           );
+        })}
+
+        {/* Time logs blocks */}
+        {timeLogs && timeLogs.length > 0 && timeLogs.map((log, index) => {
+          console.log(`Rendering time log block ${index}:`, log);
+          try {
+            const { top, height } = getBlockPosition(log.start, log.end);
+            console.log(`Block position - top: ${top}, height: ${height}`);
+            return (
+              <View
+                key={log.id || `log-${index}`}
+                style={{
+                  position: 'absolute',
+                  top,
+                  left: 60, // Offset to avoid overlapping with hour labels
+                  right: 20,
+                  height,
+                  borderRadius: 8,
+                  padding: 8,
+                  backgroundColor: '#4F46E5',
+                }}
+              >
+                <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 12 }}>
+                  {log.title}
+                </Text>
+                <Text style={{ color: '#fff', fontSize: 10 }}>
+                  {log.start} - {log.end}
+                </Text>
+              </View>
+            );
+          } catch (error) {
+            console.error('Error rendering time log:', error, log);
+            return null;
+          }
         })}
       </ScrollView>
     </View>

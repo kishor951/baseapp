@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, SafeAreaView, Animated } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, SafeAreaView, Animated, Keyboard } from 'react-native';
 import { PermissionsAndroid } from 'react-native';
 import Voice from 'react-native-voice';
 import * as Clipboard from 'expo-clipboard';
@@ -64,6 +64,9 @@ export default function JarvinScreen({
   const [inputHeight, setInputHeight] = useState(44);
   const [isListening, setIsListening] = useState(false);
   const [mode, setMode] = useState('ask'); // 'task', 'routine', 'ask'
+  // Scroll/keyboard helpers to keep input visible in Expo client and APK
+  const scrollViewRef = React.useRef(null);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   // Chat session management now handled in App.js
   // Props: chatSessions, setChatSessions, currentChatId, setCurrentChatId
   // Speech-to-text handlers
@@ -159,7 +162,34 @@ export default function JarvinScreen({
     if (!GOOGLE_API_KEY) {
       setError('Google API key is missing. Please check your app.json and restart Expo.');
     }
+
+    const onShow = (e) => {
+      const h = e?.endCoordinates?.height || 0;
+      setKeyboardHeight(h);
+      // small delay then scroll to bottom
+      setTimeout(() => {
+        if (scrollViewRef.current && typeof scrollViewRef.current.scrollToEnd === 'function') {
+          scrollViewRef.current.scrollToEnd({ animated: true });
+        }
+      }, 50);
+    };
+    const onHide = () => setKeyboardHeight(0);
+
+    const showSub = Keyboard.addListener('keyboardDidShow', onShow);
+    const hideSub = Keyboard.addListener('keyboardDidHide', onHide);
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
   }, []);
+
+  // Auto-scroll when messages change
+  React.useEffect(() => {
+    if (scrollViewRef.current && typeof scrollViewRef.current.scrollToEnd === 'function') {
+      scrollViewRef.current.scrollToEnd({ animated: true });
+    }
+  }, [messages.length]);
 
   const GOOGLE_API_KEY =
     Constants.expoConfig?.extra?.GOOGLE_API_KEY ||
@@ -610,11 +640,12 @@ Remember: Each response should feel like a continuation of our ongoing conversat
       <View style={{ flex: 1 }}>
         <KeyboardAvoidingView
           style={{ flex: 1 }}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 80}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
         >
 
-          <ScrollView style={{ flex: 1, padding: 20 }} contentContainerStyle={{ paddingBottom: 80 }}>
+          <View style={{ flex: 1 }}>
+            <ScrollView ref={scrollViewRef} style={{ flex: 1, padding: 20 }} contentContainerStyle={{ paddingBottom: Math.max(160, keyboardHeight + 100) }}>
             {messages
               .filter(msg => msg.role !== 'SYSTEM')
               .map((msg, idx) => (
@@ -663,8 +694,8 @@ Remember: Each response should feel like a continuation of our ongoing conversat
               ))}
             {loading && <ActivityIndicator size="small" color="#007AFF" style={{ marginTop: 10 }} />}
           </ScrollView>
-          {/* Mode Selector - centered above input, inserts text into input on press */}
-          <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginBottom: 8 }}>
+            {/* Mode Selector - centered above input, inserts text into input on press */}
+            <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginBottom: 8 }}>
             {['Add Tasks', 'Add Routines', 'Ask Anything'].map(option => (
               <TouchableOpacity
                 key={option}
@@ -688,8 +719,10 @@ Remember: Each response should feel like a continuation of our ongoing conversat
                 </Text>
               </TouchableOpacity>
             ))}
-          </View>
-          <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#fff', padding: 16, borderTopWidth: 1, borderTopColor: '#eee', flexDirection: 'row', alignItems: 'center' }}>
+            </View>
+
+            {/* Input bar (not absolutely positioned so adjustResize can work) */}
+            <View style={{ backgroundColor: '#fff', padding: 16, borderTopWidth: 1, borderTopColor: '#eee', flexDirection: 'row', alignItems: 'center', marginBottom: keyboardHeight }}>
             <TextInput
               style={{
                 flex: 1,
@@ -728,6 +761,7 @@ Remember: Each response should feel like a continuation of our ongoing conversat
             <TouchableOpacity onPress={sendMessage} disabled={loading || !input.trim()} style={{ marginLeft: 10 }}>
               <Ionicons name="send" size={28} color={loading || !input.trim() ? '#ccc' : '#007AFF'} />
             </TouchableOpacity>
+            </View>
           </View>
         </KeyboardAvoidingView>
       </View>

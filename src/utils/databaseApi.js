@@ -547,30 +547,34 @@ export const saveTimeLog = async (userId, timeLogData) => {
 
 export const fetchTimeLogs = async (userId, startDate = null, endDate = null) => {
   try {
+    console.log('Fetching time logs for user:', userId, 'from:', startDate, 'to:', endDate);
+
     let query = supabase
       .from('time_logs')
-      .select(`
-        *,
-        tasks(title),
-        routines(name)
-      `)
-      .eq('user_id', userId)
-      .order('started_at', { ascending: false });
-    
+      .select('*')
+      .eq('user_id', userId);
+
     if (startDate) {
+      console.log('Applying startDate filter:', startDate);
       query = query.gte('started_at', startDate);
     }
-    
+
     if (endDate) {
-      query = query.lte('started_at', endDate);
+      console.log('Applying endDate filter:', endDate);
+      query = query.lte('ended_at', endDate);
     }
-    
+
     const { data, error } = await query;
-    
-    if (error) throw error;
+
+    if (error) {
+      console.error('Error fetching time logs:', error);
+      return { data: null, error };
+    }
+
+    console.log('Raw time logs data:', data);
     return { data, error: null };
   } catch (error) {
-    console.error('Error fetching time logs:', error);
+    console.error('Unexpected error fetching time logs:', error);
     return { data: null, error };
   }
 };
